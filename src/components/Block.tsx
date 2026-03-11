@@ -126,44 +126,27 @@ export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, on
     // Dialogue: 2.5in on page = 1.5in indent. Width ~3.5in.
     // Parenthetical: 3.1in on page = 2.1in indent.
 
+    // Desktop specific styles only - Mobile uses Tailwind classes in clsx
     const styles: React.CSSProperties = {};
-
-    // Base indent for everything to hitting 1.5in left margin
-    // But our container has p-[1in], so we add 0.5in to everything?
-    // Let's assume the user wants the "look" relative to the "page" div.
+    let responsiveClasses = '';
 
     if (block.type === 'scene') {
-        styles.marginLeft = '0.5in'; // 1.5in total
-        styles.maxWidth = '6in';
+        responsiveClasses = 'ml-4 md:ml-[0.5in] max-w-full md:max-w-[6in]';
     }
     else if (block.type === 'action') {
-        styles.marginLeft = '0.5in'; // 1.5in total
-        styles.maxWidth = '6in';
+        responsiveClasses = 'ml-4 md:ml-[0.5in] max-w-full md:max-w-[6in]';
     }
     else if (block.type === 'character') {
-        styles.marginLeft = '2.7in'; // 3.7in total
-        styles.width = 'auto'; // let it grow
-        styles.textAlign = 'left';
+        responsiveClasses = 'ml-[35%] md:ml-[2.7in] w-auto text-left';
     }
     else if (block.type === 'dialogue') {
-        styles.marginLeft = '1.5in'; // 2.5in total
-        styles.marginRight = '1.5in'; // Limit width
-        styles.maxWidth = '3.5in';
-        styles.textAlign = 'left';
+        responsiveClasses = 'ml-[15%] mr-[10%] md:ml-[1.5in] md:mr-[1.5in] max-w-full md:max-w-[3.5in] text-left';
     }
     else if (block.type === 'parenthetical') {
-        styles.marginLeft = '2.1in'; // 3.1in total
-        styles.marginRight = '2.0in';
-        styles.maxWidth = '3.0in';
-        styles.textAlign = 'left';
+        responsiveClasses = 'ml-[25%] mr-[15%] md:ml-[2.1in] md:mr-[2.0in] max-w-full md:max-w-[3.0in] text-left';
     }
     else if (block.type === 'transition') {
-        styles.textAlign = 'right';
-        styles.marginLeft = 'auto'; // Force to right
-        styles.marginRight = '0.5in';
-        styles.width = 'fit-content'; // Ensure it only takes needed space so cursor stays right? 
-        // actually for contentEditable with text-align right, display block is fine. 
-        // But let's try pushing it to the right with margin-left auto.
+        responsiveClasses = 'text-right ml-auto mr-4 md:mr-[0.5in] w-fit';
     }
 
     const handleBlur = () => {
@@ -242,6 +225,7 @@ export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, on
             suppressContentEditableWarning
             className={clsx(
                 'outline-none',
+                responsiveClasses,
                 block.type === 'scene' ? 'uppercase font-bold mt-4 mb-2' : '',
                 block.type === 'action' ? 'mb-2' : '',
                 block.type === 'character' ? 'uppercase mt-4 mb-0' : '',
