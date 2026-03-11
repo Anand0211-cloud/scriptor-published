@@ -4,7 +4,8 @@ import { supabase } from '../lib/supabase';
 import { AuthLayout } from '../auth/AuthLayout';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { Mail, Lock } from 'lucide-react';
+import { Mail, Lock, Moon, Sun } from 'lucide-react';
+import { useTheme } from '../components/ThemeProvider';
 
 export default function Login() {
     const [email, setEmail] = useState('');
@@ -12,6 +13,7 @@ export default function Login() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const navigate = useNavigate();
+    const { theme, setTheme } = useTheme();
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -38,6 +40,20 @@ export default function Login() {
             title="Welcome Back"
             subtitle="Continue your storytelling journey."
         >
+            <Button
+                variant="ghost"
+                size="sm"
+                className="absolute top-4 right-4 h-9 w-9 p-0"
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            >
+                {theme === 'dark' ? (
+                    <Sun className="h-4 w-4" />
+                ) : (
+                    <Moon className="h-4 w-4" />
+                )}
+                <span className="sr-only">Toggle theme</span>
+            </Button>
+
             <form className="space-y-6" onSubmit={handleLogin}>
                 {error && (
                     <div className="bg-red-500/10 border border-red-500/20 text-red-500 p-3 rounded-lg text-sm flex items-center gap-2">
