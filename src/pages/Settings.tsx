@@ -193,36 +193,38 @@ export default function Settings() {
                             </div>
                         </div>
 
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                             <div>
                                 <p className="font-medium text-gray-900 dark:text-white">Theme Preference</p>
                                 <p className="text-sm text-gray-500 dark:text-gray-400">Choose your preferred theme.</p>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
                                 <Button
                                     variant={theme === 'light' ? 'primary' : 'outline'}
                                     size="sm"
                                     onClick={() => setTheme('light')}
-                                    className="gap-2"
+                                    className="gap-2 flex-1 sm:flex-none justify-center"
                                 >
                                     <Sun className="h-4 w-4" />
-                                    Light
+                                    <span className="sm:hidden lg:inline">Light</span>
                                 </Button>
                                 <Button
                                     variant={theme === 'dark' ? 'primary' : 'outline'}
                                     size="sm"
                                     onClick={() => setTheme('dark')}
-                                    className="gap-2"
+                                    className="gap-2 flex-1 sm:flex-none justify-center"
                                 >
                                     <Moon className="h-4 w-4" />
-                                    Dark
+                                    <span className="sm:hidden lg:inline">Dark</span>
                                 </Button>
                                 <Button
                                     variant={theme === 'system' ? 'primary' : 'outline'}
                                     size="sm"
                                     onClick={() => setTheme('system')}
+                                    className="flex-1 sm:flex-none justify-center"
                                 >
-                                    System
+                                    <span className="sm:hidden lg:inline">System</span>
+                                    <Monitor className="h-4 w-4 hidden sm:block lg:hidden" />
                                 </Button>
                             </div>
                         </div>
