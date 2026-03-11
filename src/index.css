@@ -1,0 +1,77 @@
+@import url('https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400;1,700&family=Inter:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+@layer base {
+  :root {
+    --color-bg-primary: 3 7 18;
+    --color-bg-secondary: 17 24 39;
+    --color-text-primary: 243 244 246;
+    --color-text-secondary: 156 163 175;
+    --color-accent: 217 70 239;
+    /* Fuchsia 500 */
+  }
+
+  /* Default to Dark Mode aesthetics, but keeping light mode override available */
+  body {
+    @apply bg-paper dark:bg-bg-primary text-gray-900 dark:text-gray-100 font-sans antialiased overflow-x-hidden selection:bg-accent-500/30 selection:text-accent-200;
+  }
+
+  /* Screenplay Editor Specifics - Keeping these intact but refining */
+  .screenplay-page {
+    @apply bg-white text-black shadow-2xl mx-auto mb-8 p-[1in] font-mono transform transition-transform duration-300;
+    width: 8.5in;
+    min-height: 11in;
+    font-size: 12pt;
+    line-height: normal;
+    outline: none;
+  }
+
+  [contenteditable]:empty:before {
+    content: attr(data-placeholder);
+    color: #9ca3af;
+  }
+
+  @media print {
+    body {
+      @apply bg-white text-black;
+    }
+
+    .no-print {
+      display: none !important;
+    }
+
+    .screenplay-page {
+      box-shadow: none;
+      margin: 0;
+      width: 100%;
+    }
+  }
+}
+
+@layer utilities {
+  .courier-prime {
+    font-family: 'Courier Prime', 'Courier', monospace;
+  }
+
+  .glass-panel {
+    @apply bg-white/5 backdrop-blur-lg border border-white/10 shadow-xl;
+  }
+
+  .glass-input {
+    @apply bg-white/5 border border-white/10 text-white placeholder-gray-500 focus:border-[#d946ef]/50 focus:ring-1 focus:ring-[#d946ef]/50 transition-all duration-300;
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-[#e879f9] to-indigo-500;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
