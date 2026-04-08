@@ -1,6 +1,8 @@
-import { type KeyboardEvent, useRef, useEffect } from 'react';
+import { type KeyboardEvent, useRef, useEffect, useState } from 'react';
 import clsx from 'clsx';
-import type { ScriptBlock } from '../hooks/useEditor';
+import type { ScriptBlock, BlockType } from '../hooks/useEditor';
+import { TYPE_MAP } from '../hooks/useEditor';
+import { ChevronDown } from 'lucide-react';
 
 interface BlockProps {
     block: ScriptBlock;
@@ -8,11 +10,28 @@ interface BlockProps {
     onEnter: (id: string, content: string) => void;
     onBackspaceAtStart: (id: string) => void;
     onTab: (id: string) => void;
+    onChangeType: (id: string, type: BlockType) => void;
     autoFocus?: boolean;
 }
 
-export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, onTab, autoFocus }: BlockProps) {
+const ALL_TYPES: BlockType[] = ['scene', 'action', 'character', 'dialogue', 'parenthetical', 'transition', 'shot'];
+
+export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, onTab, onChangeType, autoFocus }: BlockProps) {
     const ref = useRef<HTMLDivElement>(null);
+    const [showTypeMenu, setShowTypeMenu] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
+
+    // Close menu when clicking outside
+    useEffect(() => {
+        if (!showTypeMenu) return;
+        const handleClickOutside = (e: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+                setShowTypeMenu(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [showTypeMenu]);
 
     // Sync content from props to DOM, but only if they differ (prevents cursor jumping)
     useEffect(() => {
@@ -27,15 +46,12 @@ export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, on
 
             // Special handling for Parentheticals with "()"
             if (block.type === 'parenthetical' && (block.content === '()' || block.content === '')) {
-                // If empty, set content to '()' via timer to avoid conflict? 
-                // No, content is synced via props. 
-                // If content is '()', put cursor inside.
                 if (block.content === '()') {
                     const range = document.createRange();
                     const textNode = ref.current.firstChild;
                     if (textNode) {
                         try {
-                            range.setStart(textNode, 1); // Inside the "("
+                            range.setStart(textNode, 1);
                             range.setEnd(textNode, 1);
                             const sel = window.getSelection();
                             sel?.removeAllRanges();
@@ -56,7 +72,7 @@ export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, on
             sel?.removeAllRanges();
             sel?.addRange(range);
         }
-    }, [autoFocus, block.type, block.content]); // Added dependencies
+    }, [autoFocus, block.type, block.content]);
 
     const handleKeyDown = (e: KeyboardEvent) => {
         if (e.key === 'Enter') {
@@ -67,14 +83,12 @@ export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, on
             onTab(block.id);
         } else if (e.key === 'Backspace') {
             const selection = window.getSelection();
-            // Check if cursor is at start (collapsed selection at offset 0)
             if (selection?.anchorNode === ref.current?.firstChild || selection?.anchorNode === ref.current) {
                 if (selection?.anchorOffset === 0 && selection.isCollapsed) {
                     e.preventDefault();
                     onBackspaceAtStart(block.id);
                 }
             } else if (!ref.current?.innerText) {
-                // Empty block case
                 e.preventDefault();
                 onBackspaceAtStart(block.id);
             }
@@ -85,23 +99,9 @@ export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, on
         if (ref.current) {
             let text = ref.current.innerText;
 
-            // Enforce Parenthetical Format (content) on input
             if (block.type === 'parenthetical') {
-                // If the user managed to delete a paren or type outside, fix it immediately for the state
-                // But for the DOM, it might be jarring if we force update on every keystroke if it moves cursor.
-                // However, the request is "while writing... words go outside... fix this".
-
-                // Check if it starts/ends with parens
                 if (!text.startsWith('(') || !text.endsWith(')')) {
-                    // Try to preserve internal content
                     const clean = text.replace(/[()]/g, '');
-                    // This is aggressive, but effective. 
-                    // To avoid cursor jumping we might need to be careful, but component syncs on props change.
-                    // If we update prop, it re-renders.
-
-                    // Let's rely on the effect hook to fix the DOM if we change the state "correctly".
-                    // But we need to update the state with the fixed version.
-
                     const fixed = `(${clean})`;
                     if (text !== fixed) {
                         onUpdate(block.id, fixed);
@@ -114,43 +114,23 @@ export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, on
         }
     };
 
-    // Industry Standard Margins (assuming container has 1in padding)
-    // Page width: 8.5in. Content width: 6.5in.
-    // Base Left Margin: 1.5in (so +0.5in relative to container)
-
-    // Action: Full width (1.5in margin)
-    // Character: 3.7in from left -> +2.7in relative to container (margin 1in) ?? 
-    // Wait, container padding is 1in. So 0in = 1in on page.
-    // Action: 1.5in on page = 0.5in indent.
-    // Character: 3.7in on page = 2.7in indent.
-    // Dialogue: 2.5in on page = 1.5in indent. Width ~3.5in.
-    // Parenthetical: 3.1in on page = 2.1in indent.
-
-    // Desktop specific styles only - Mobile uses Tailwind classes in clsx
-    const styles: React.CSSProperties = {};
+    // Responsive classes per type
     let responsiveClasses = '';
-
     if (block.type === 'scene') {
         responsiveClasses = 'ml-4 md:ml-[0.5in] max-w-full md:max-w-[6in]';
-    }
-    else if (block.type === 'action') {
+    } else if (block.type === 'action') {
         responsiveClasses = 'ml-4 md:ml-[0.5in] max-w-full md:max-w-[6in]';
-    }
-    else if (block.type === 'character') {
+    } else if (block.type === 'character') {
         responsiveClasses = 'ml-[35%] md:ml-[2.7in] w-auto text-left';
-    }
-    else if (block.type === 'dialogue') {
+    } else if (block.type === 'dialogue') {
         responsiveClasses = 'ml-[15%] mr-[10%] md:ml-[1.5in] md:mr-[1.5in] max-w-full md:max-w-[3.5in] text-left';
-    }
-    else if (block.type === 'parenthetical') {
+    } else if (block.type === 'parenthetical') {
         responsiveClasses = 'ml-[25%] mr-[15%] md:ml-[2.1in] md:mr-[2.0in] max-w-full md:max-w-[3.0in] text-left';
-    }
-    else if (block.type === 'transition') {
+    } else if (block.type === 'transition') {
         responsiveClasses = 'text-right ml-auto mr-4 md:mr-[0.5in] w-fit';
     }
 
     const handleBlur = () => {
-        // Sanitize on blur
         if (block.type === 'parenthetical') {
             const text = ref.current?.innerText || '';
             const clean = text.replace(/[()]/g, '').trim();
@@ -161,8 +141,6 @@ export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, on
         }
     };
 
-    // Use LayoutEffect for cursor positioning to avoid visual jumping
-    // We need to run this when block.content changes if we are focused
     useEffect(() => {
         if (!ref.current) return;
         if (block.type === 'parenthetical' && document.activeElement === ref.current) {
@@ -177,35 +155,23 @@ export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, on
         if (!sel?.rangeCount) return;
 
         const rawLen = ref.current.innerText.length;
-        // Minimum length should be 2 for "()"
         if (rawLen < 2) return;
 
         let targetNode = sel.anchorNode;
         let targetOffset = sel.anchorOffset;
 
-        // Normalize selection: If selected node is the DIV, get the text node inside
         if (targetNode === ref.current) {
-            // If offset is 0, it means before first child.
-            // If offset is 1, it means after first child (assuming single text node).
             const textNode = ref.current.firstChild;
             if (textNode && textNode.nodeType === Node.TEXT_NODE) {
                 targetNode = textNode;
-                // If invalid div offset, map to end of text
                 targetOffset = (targetOffset > 0) ? textNode.textContent?.length || 0 : 0;
             }
         }
 
-        // Now strictly check if we are in the text node
         if (targetNode && targetNode.nodeType === Node.TEXT_NODE && targetNode.parentElement === ref.current) {
             const textLen = targetNode.textContent?.length || 0;
             let newOffset = targetOffset;
-
-            // Must be > 0 (after '(')
             if (newOffset < 1) newOffset = 1;
-
-            // Must be < len (before ')')
-            // If cursor is AT len, it is AFTER the last character (the closing paren)
-            // We want max index to be len - 1
             if (newOffset >= textLen) newOffset = textLen - 1;
 
             if (newOffset !== targetOffset) {
@@ -218,28 +184,94 @@ export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, on
         }
     };
 
+    const handleSelectType = (type: BlockType) => {
+        onChangeType(block.id, type);
+        setShowTypeMenu(false);
+        // Refocus the content area after selecting type
+        setTimeout(() => ref.current?.focus(), 50);
+    };
+
+    // Color coding for the type badge
+    const typeColor: Record<BlockType, string> = {
+        scene: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border-amber-200 dark:border-amber-800',
+        action: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border-blue-200 dark:border-blue-800',
+        character: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 border-purple-200 dark:border-purple-800',
+        dialogue: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 border-green-200 dark:border-green-800',
+        parenthetical: 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300 border-teal-200 dark:border-teal-800',
+        transition: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300 border-rose-200 dark:border-rose-800',
+        shot: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300 border-orange-200 dark:border-orange-800',
+    };
+
     return (
-        <div
-            ref={ref}
-            contentEditable
-            suppressContentEditableWarning
-            className={clsx(
-                'outline-none',
-                responsiveClasses,
-                block.type === 'scene' ? 'uppercase font-bold mt-4 mb-2' : '',
-                block.type === 'action' ? 'mb-2' : '',
-                block.type === 'character' ? 'uppercase mt-4 mb-0' : '',
-                block.type === 'dialogue' ? 'mb-2' : '',
-                block.type === 'parenthetical' ? 'mb-0 lowercase' : '', // Parentheticals are lowercase
-                block.type === 'transition' ? 'uppercase mt-4 mb-2' : ''
-            )}
-            style={styles}
-            onKeyDown={handleKeyDown}
-            onInput={handleInput}
-            onBlur={handleBlur}
-            onKeyUp={enforceCursorGuard}
-            onClick={enforceCursorGuard}
-            data-placeholder={block.content === '' ? block.type.toUpperCase() : ''}
-        />
+        <div className="group relative flex items-start gap-0">
+            {/* Type Selector Badge */}
+            <div className="relative shrink-0" ref={menuRef}>
+                <button
+                    type="button"
+                    onClick={() => setShowTypeMenu(prev => !prev)}
+                    className={clsx(
+                        'flex items-center gap-0.5 rounded border text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 mt-[3px] cursor-pointer select-none transition-all duration-150 whitespace-nowrap',
+                        'opacity-40 group-hover:opacity-100 focus:opacity-100',
+                        typeColor[block.type]
+                    )}
+                    title="Change block type"
+                >
+                    <span className="hidden sm:inline">{TYPE_MAP[block.type]}</span>
+                    <span className="sm:hidden">{block.type.slice(0, 3).toUpperCase()}</span>
+                    <ChevronDown className="h-2.5 w-2.5 shrink-0" />
+                </button>
+
+                {/* Dropdown Menu */}
+                {showTypeMenu && (
+                    <div className="absolute left-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl py-1 min-w-[160px] animate-in fade-in slide-in-from-top-1 duration-150">
+                        {ALL_TYPES.map(t => (
+                            <button
+                                key={t}
+                                type="button"
+                                onClick={() => handleSelectType(t)}
+                                className={clsx(
+                                    'w-full text-left px-3 py-2 text-xs font-medium flex items-center gap-2 transition-colors',
+                                    t === block.type
+                                        ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300'
+                                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                )}
+                            >
+                                <span className={clsx(
+                                    'w-2 h-2 rounded-full shrink-0',
+                                    t === block.type ? 'bg-indigo-500' : 'bg-gray-300 dark:bg-gray-600'
+                                )} />
+                                {TYPE_MAP[t]}
+                                {t === block.type && (
+                                    <span className="ml-auto text-[10px] text-indigo-400">✓</span>
+                                )}
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* Content Editable Area */}
+            <div
+                ref={ref}
+                contentEditable
+                suppressContentEditableWarning
+                className={clsx(
+                    'outline-none flex-1',
+                    responsiveClasses,
+                    block.type === 'scene' ? 'uppercase font-bold mt-4 mb-2' : '',
+                    block.type === 'action' ? 'mb-2' : '',
+                    block.type === 'character' ? 'uppercase mt-4 mb-0' : '',
+                    block.type === 'dialogue' ? 'mb-2' : '',
+                    block.type === 'parenthetical' ? 'mb-0 lowercase' : '',
+                    block.type === 'transition' ? 'uppercase mt-4 mb-2' : ''
+                )}
+                onKeyDown={handleKeyDown}
+                onInput={handleInput}
+                onBlur={handleBlur}
+                onKeyUp={enforceCursorGuard}
+                onClick={enforceCursorGuard}
+                data-placeholder={block.content === '' ? block.type.toUpperCase() : ''}
+            />
+        </div>
     );
 }

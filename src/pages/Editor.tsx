@@ -8,7 +8,7 @@ import { useRef } from 'react';
 
 export default function Editor() {
     const { id } = useParams();
-    const { blocks, title, setTitle, loading, saving, saveScript, updateBlock, handleEnter, handleBackspaceAtStart, handleTab, focusedId } = useEditor(id);
+    const { blocks, title, setTitle, loading, saving, saveScript, updateBlock, changeType, handleEnter, handleBackspaceAtStart, handleTab, focusedId } = useEditor(id);
     const editorRef = useRef<HTMLDivElement>(null);
 
     const handleDownloadPDF = () => {
@@ -159,6 +159,7 @@ export default function Editor() {
                                 onEnter={handleEnter}
                                 onBackspaceAtStart={handleBackspaceAtStart}
                                 onTab={handleTab}
+                                onChangeType={changeType}
                                 autoFocus={focusedId === block.id}
                             />
                         ))}
