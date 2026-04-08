@@ -1,17 +1,21 @@
 import { useState, useEffect } from 'react';
 import DashboardLayout from './DashboardLayout';
 import ScriptCard, { type Script } from './ScriptCard';
-import { Plus, Search, Filter, Loader2 } from 'lucide-react';
+import { Plus, Search, Filter, Loader2, FileUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { v4 as uuidv4 } from 'uuid';
+import { useRef } from 'react';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../components/AuthProvider';
+import { parseScriptPDF } from '../lib/pdfParser';
 
 export default function Dashboard() {
     const [scripts, setScripts] = useState<Script[]>([]);
     const [loading, setLoading] = useState(true);
+    const [isImporting, setIsImporting] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const navigate = useNavigate();
     const { user } = useAuth();
 
@@ -68,6 +72,65 @@ export default function Dashboard() {
 
         navigate(`/editor/${newId}`);
     };
+    const [importStatus, setImportStatus] = useState('');
+
+    const handleImportClick = () => {
+        console.log('[Dashboard] Import PDF button clicked');
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        console.log('[Dashboard] File input changed');
+        const file = e.target.files?.[0];
+        if (!file) {
+            console.log('[Dashboard] No file selected');
+            return;
+        }
+        if (!user) {
+            console.log('[Dashboard] No user logged in');
+            alert('Please log in first.');
+            return;
+        }
+
+        console.log('[Dashboard] File selected:', file.name, 'Type:', file.type, 'Size:', file.size);
+        setIsImporting(true);
+        setImportStatus('Reading PDF...');
+
+        try {
+            const { title: parsedTitle, blocks } = await parseScriptPDF(file, 10, (progress) => {
+                console.log(`[Dashboard] Progress: ${progress.phase}`);
+                setImportStatus(progress.phase);
+            });
+
+            console.log('[Dashboard] PDF parsed successfully. Title:', parsedTitle, 'Blocks:', blocks.length);
+            setImportStatus('Saving script...');
+
+            const newId = uuidv4();
+            const newScript = {
+                id: newId,
+                user_id: user.id,
+                title: parsedTitle || file.name.replace(/\.pdf$/i, ''),
+                content: blocks,
+            };
+
+            const { error } = await supabase.from('scripts').insert(newScript);
+
+            if (error) {
+                console.error('[Dashboard] Error saving script to DB:', error);
+                alert('Failed to save imported script: ' + error.message);
+            } else {
+                console.log('[Dashboard] Script saved. Navigating to editor:', newId);
+                navigate(`/editor/${newId}`);
+            }
+        } catch (error) {
+            console.error('[Dashboard] Import failed:', error);
+            alert('Failed to parse PDF: ' + (error instanceof Error ? error.message : 'Unknown error'));
+        } finally {
+            setIsImporting(false);
+            setImportStatus('');
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
 
     const handleRename = async (id: string, newName: string) => {
         // Optimistic update
@@ -117,14 +180,37 @@ export default function Dashboard() {
                                 Manage your storylines and screenplays.
                             </p>
                         </div>
-                        <Button
-                            onClick={handleCreateScript}
-                            size="lg"
-                            className="shadow-lg shadow-accent-500/20"
-                        >
-                            <Plus className="h-5 w-5 mr-2" />
-                            New Screenplay
-                        </Button>
+                        <div className="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                onChange={handleFileChange}
+                                accept=".pdf"
+                                className="hidden"
+                            />
+                            <Button
+                                onClick={handleImportClick}
+                                variant="secondary"
+                                size="lg"
+                                disabled={isImporting}
+                                className="w-full sm:w-auto bg-white dark:bg-bg-secondary/50 border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-300 shadow-sm"
+                            >
+                                {isImporting ? (
+                                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                                ) : (
+                                    <FileUp className="h-5 w-5 mr-2" />
+                                )}
+                                {isImporting ? (importStatus || 'Processing...') : 'Import PDF'}
+                            </Button>
+                            <Button
+                                onClick={handleCreateScript}
+                                size="lg"
+                                className="w-full sm:w-auto shadow-lg shadow-accent-500/20"
+                            >
+                                <Plus className="h-5 w-5 mr-2" />
+                                New Screenplay
+                            </Button>
+                        </div>
                     </div>
 
                     {/* Toolbar */}
