@@ -12,14 +12,17 @@ interface BlockProps {
     onTab: (id: string) => void;
     onChangeType: (id: string, type: BlockType) => void;
     autoFocus?: boolean;
+    onFocused?: () => void;
 }
 
 const ALL_TYPES: BlockType[] = ['scene', 'action', 'character', 'dialogue', 'parenthetical', 'transition', 'shot'];
 
-export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, onTab, onChangeType, autoFocus }: BlockProps) {
+export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, onTab, onChangeType, autoFocus, onFocused }: BlockProps) {
     const ref = useRef<HTMLDivElement>(null);
     const [showTypeMenu, setShowTypeMenu] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
+    // Track whether the latest content change came from local user typing
+    const isLocalEdit = useRef(false);
 
     // Close menu when clicking outside
     useEffect(() => {
@@ -33,8 +36,13 @@ export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, on
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [showTypeMenu]);
 
-    // Sync content from props to DOM, but only if they differ (prevents cursor jumping)
+    // Sync content from props to DOM ONLY for external/programmatic changes.
+    // Skip when the change originated from local typing to preserve cursor position.
     useEffect(() => {
+        if (isLocalEdit.current) {
+            isLocalEdit.current = false;
+            return;
+        }
         if (ref.current && ref.current.innerText !== block.content) {
             ref.current.innerText = block.content;
         }
@@ -56,6 +64,8 @@ export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, on
                             const sel = window.getSelection();
                             sel?.removeAllRanges();
                             sel?.addRange(range);
+                            // Signal that focus has been consumed
+                            onFocused?.();
                             return;
                         } catch (e) {
                             // fallback
@@ -71,8 +81,11 @@ export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, on
             const sel = window.getSelection();
             sel?.removeAllRanges();
             sel?.addRange(range);
+
+            // Signal that focus has been consumed so focusedId resets
+            onFocused?.();
         }
-    }, [autoFocus, block.type, block.content]);
+    }, [autoFocus, block.type, block.content, onFocused]);
 
     const handleKeyDown = (e: KeyboardEvent) => {
         if (e.key === 'Enter') {
@@ -98,13 +111,31 @@ export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, on
     const handleInput = () => {
         if (ref.current) {
             let text = ref.current.innerText;
+            // Mark this as a local edit so the sync effect won't clobber the DOM
+            isLocalEdit.current = true;
 
             if (block.type === 'parenthetical') {
                 if (!text.startsWith('(') || !text.endsWith(')')) {
                     const clean = text.replace(/[()]/g, '');
                     const fixed = `(${clean})`;
                     if (text !== fixed) {
+                        // For parenthetical fixes we DO need to rewrite DOM, so save & restore cursor
+                        const sel = window.getSelection();
+                        const cursorOffset = sel?.anchorOffset ?? 0;
                         onUpdate(block.id, fixed);
+                        // Restore cursor after React re-render
+                        requestAnimationFrame(() => {
+                            if (!ref.current) return;
+                            const textNode = ref.current.firstChild;
+                            if (textNode && textNode.nodeType === Node.TEXT_NODE) {
+                                const safeOffset = Math.min(cursorOffset + 1, (textNode.textContent?.length ?? 1) - 1);
+                                const range = document.createRange();
+                                range.setStart(textNode, Math.max(1, safeOffset));
+                                range.setEnd(textNode, Math.max(1, safeOffset));
+                                sel?.removeAllRanges();
+                                sel?.addRange(range);
+                            }
+                        });
                         return;
                     }
                 }
@@ -191,15 +222,15 @@ export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, on
         setTimeout(() => ref.current?.focus(), 50);
     };
 
-    // Color coding for the type badge
+    // Industry-standard solid colors — high contrast, white text, always readable
     const typeColor: Record<BlockType, string> = {
-        scene: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border-amber-200 dark:border-amber-800',
-        action: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300 border-blue-200 dark:border-blue-800',
-        character: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 border-purple-200 dark:border-purple-800',
-        dialogue: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300 border-green-200 dark:border-green-800',
-        parenthetical: 'bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300 border-teal-200 dark:border-teal-800',
-        transition: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300 border-rose-200 dark:border-rose-800',
-        shot: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300 border-orange-200 dark:border-orange-800',
+        scene:         'bg-amber-600 text-white border-amber-700',
+        action:        'bg-slate-600 text-white border-slate-700',
+        character:     'bg-violet-600 text-white border-violet-700',
+        dialogue:      'bg-emerald-600 text-white border-emerald-700',
+        parenthetical: 'bg-cyan-600 text-white border-cyan-700',
+        transition:    'bg-rose-600 text-white border-rose-700',
+        shot:          'bg-orange-600 text-white border-orange-700',
     };
 
     return (
@@ -210,42 +241,56 @@ export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, on
                     type="button"
                     onClick={() => setShowTypeMenu(prev => !prev)}
                     className={clsx(
-                        'flex items-center gap-0.5 rounded border text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 mt-[3px] cursor-pointer select-none transition-all duration-150 whitespace-nowrap',
-                        'opacity-40 group-hover:opacity-100 focus:opacity-100',
+                        'flex items-center gap-1 rounded-md border text-[10px] font-bold uppercase tracking-wide px-2 py-1 mt-[2px] cursor-pointer select-none transition-all duration-150 whitespace-nowrap shadow-sm',
+                        'opacity-60 group-hover:opacity-100 focus:opacity-100',
                         typeColor[block.type]
                     )}
                     title="Change block type"
                 >
                     <span className="hidden sm:inline">{TYPE_MAP[block.type]}</span>
                     <span className="sm:hidden">{block.type.slice(0, 3).toUpperCase()}</span>
-                    <ChevronDown className="h-2.5 w-2.5 shrink-0" />
+                    <ChevronDown className="h-3 w-3 shrink-0 opacity-70" />
                 </button>
 
                 {/* Dropdown Menu */}
                 {showTypeMenu && (
-                    <div className="absolute left-0 top-full mt-1 z-50 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl py-1 min-w-[160px] animate-in fade-in slide-in-from-top-1 duration-150">
-                        {ALL_TYPES.map(t => (
-                            <button
-                                key={t}
-                                type="button"
-                                onClick={() => handleSelectType(t)}
-                                className={clsx(
-                                    'w-full text-left px-3 py-2 text-xs font-medium flex items-center gap-2 transition-colors',
-                                    t === block.type
-                                        ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300'
-                                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                                )}
-                            >
-                                <span className={clsx(
-                                    'w-2 h-2 rounded-full shrink-0',
-                                    t === block.type ? 'bg-indigo-500' : 'bg-gray-300 dark:bg-gray-600'
-                                )} />
-                                {TYPE_MAP[t]}
-                                {t === block.type && (
-                                    <span className="ml-auto text-[10px] text-indigo-400">✓</span>
-                                )}
-                            </button>
-                        ))}
+                    <div className="absolute left-0 top-full mt-1 z-50 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl py-1.5 min-w-[180px]">
+                        {ALL_TYPES.map(t => {
+                            // Per-type dot colors matching the badge colors
+                            const dotColor: Record<BlockType, string> = {
+                                scene: 'bg-amber-600',
+                                action: 'bg-slate-600',
+                                character: 'bg-violet-600',
+                                dialogue: 'bg-emerald-600',
+                                parenthetical: 'bg-cyan-600',
+                                transition: 'bg-rose-600',
+                                shot: 'bg-orange-600',
+                            };
+                            const isActive = t === block.type;
+                            return (
+                                <button
+                                    key={t}
+                                    type="button"
+                                    onClick={() => handleSelectType(t)}
+                                    className={clsx(
+                                        'w-full text-left px-3 py-2 text-xs font-semibold flex items-center gap-2.5 transition-colors cursor-pointer',
+                                        isActive
+                                            ? 'bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white'
+                                            : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/60 hover:text-gray-900 dark:hover:text-gray-200'
+                                    )}
+                                >
+                                    <span className={clsx(
+                                        'w-2.5 h-2.5 rounded-full shrink-0 ring-2 ring-offset-1 ring-offset-white dark:ring-offset-gray-900',
+                                        dotColor[t],
+                                        isActive ? 'ring-current' : 'ring-transparent'
+                                    )} />
+                                    {TYPE_MAP[t]}
+                                    {isActive && (
+                                        <span className="ml-auto text-[11px] font-bold text-indigo-500 dark:text-indigo-400">✓</span>
+                                    )}
+                                </button>
+                            );
+                        })}
                     </div>
                 )}
             </div>

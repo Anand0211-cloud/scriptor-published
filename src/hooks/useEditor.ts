@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../components/AuthProvider';
@@ -40,6 +40,12 @@ export function useEditor(scriptId?: string) {
     const [saving, setSaving] = useState(false);
     const { user } = useAuth();
 
+    // Stabilize the user identity so the load effect doesn't re-run
+    // every time Supabase refreshes the JWT token (e.g. on tab switch).
+    const userIdRef = useRef(user?.id);
+    userIdRef.current = user?.id;
+    const stableUserId = useMemo(() => user?.id, [user?.id]);
+
     // Track focused block to ensure focus persistence after renders
     const [focusedId, setFocusedId] = useState<string | null>(null);
 
@@ -49,7 +55,7 @@ export function useEditor(scriptId?: string) {
 
     // Fetch script on load
     useEffect(() => {
-        if (!scriptId || !user) return;
+        if (!scriptId || !stableUserId) return;
 
         const loadScript = async () => {
             setLoading(true);
@@ -96,7 +102,7 @@ export function useEditor(scriptId?: string) {
             initialLoadDone.current = false;
             if (pendingSave.current) clearTimeout(pendingSave.current);
         }
-    }, [scriptId, user]);
+    }, [scriptId, stableUserId]);
     const saveScript = useCallback(async () => {
         if (!scriptId || !user) return;
         setSaving(true);
@@ -158,22 +164,25 @@ export function useEditor(scriptId?: string) {
     }, []);
 
     const deleteBlock = useCallback((id: string) => {
+        // Read current blocks to find the previous block's ID before mutating
+        let prevBlockId: string | null = null;
         setBlocks(prev => {
             const index = prev.findIndex(b => b.id === id);
             if (index <= 0) return prev; // Don't delete the first block for now
 
+            prevBlockId = prev[index - 1].id;
             const newBlocks = [...prev];
             newBlocks.splice(index, 1);
-
-            // Focus the previous block
-            setFocusedId(prev[index - 1].id);
             return newBlocks;
         });
+        // Focus the previous block AFTER setBlocks, not inside the updater
+        if (prevBlockId) setFocusedId(prevBlockId);
     }, []);
 
     // Handle "Enter" key
     const handleEnter = useCallback((id: string, content: string) => {
-        // Find current block to determine next type
+        // Generate the new block ID before the updater so we can focus it afterwards
+        const newId = uuidv4();
         setBlocks(prev => {
             const currentBlock = prev.find(b => b.id === id);
             if (!currentBlock) return prev;
@@ -185,24 +194,26 @@ export function useEditor(scriptId?: string) {
                 // Note: This needs to be handled carefully, for now just create next
             }
 
-            const newBlock: ScriptBlock = { id: uuidv4(), type: nextType, content: '' };
+            const newBlock: ScriptBlock = { id: newId, type: nextType, content: '' };
             const index = prev.findIndex(b => b.id === id);
             const newBlocks = [...prev];
             newBlocks.splice(index + 1, 0, newBlock);
-
-            setFocusedId(newBlock.id);
             return newBlocks;
         });
+        // Focus the new block AFTER setBlocks
+        setFocusedId(newId);
     }, []);
 
     // Handle "Backspace" key at start of block
     const handleBackspaceAtStart = useCallback((id: string) => {
+        let targetId: string | null = null;
         setBlocks(prev => {
             const index = prev.findIndex(b => b.id === id);
             if (index <= 0) return prev;
 
             const currentBlock = prev[index];
             const prevBlock = prev[index - 1];
+            targetId = prevBlock.id;
 
             const newBlocks = [...prev];
             // Merge content if previous block exists
@@ -210,10 +221,10 @@ export function useEditor(scriptId?: string) {
 
             newBlocks[index - 1] = { ...prevBlock, content: mergedContent };
             newBlocks.splice(index, 1);
-
-            setFocusedId(prevBlock.id);
             return newBlocks;
         });
+        // Focus the target block AFTER setBlocks
+        if (targetId) setFocusedId(targetId);
     }, []);
 
     // Handle "Tab" key to cycle types

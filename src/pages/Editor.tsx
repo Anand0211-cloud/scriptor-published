@@ -4,12 +4,16 @@ import Block from '../components/Block';
 import { Download, Save, ArrowLeft, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
-import { useRef } from 'react';
+import { useRef, useCallback } from 'react';
 
 export default function Editor() {
     const { id } = useParams();
-    const { blocks, title, setTitle, loading, saving, saveScript, updateBlock, changeType, handleEnter, handleBackspaceAtStart, handleTab, focusedId } = useEditor(id);
+    const { blocks, title, setTitle, loading, saving, saveScript, updateBlock, changeType, handleEnter, handleBackspaceAtStart, handleTab, focusedId, setFocusedId } = useEditor(id);
     const editorRef = useRef<HTMLDivElement>(null);
+
+    const handleFocused = useCallback(() => {
+        setFocusedId(null);
+    }, [setFocusedId]);
 
     const handleDownloadPDF = () => {
         // Basic PDF Generation using jsPDF
@@ -161,6 +165,7 @@ export default function Editor() {
                                 onTab={handleTab}
                                 onChangeType={changeType}
                                 autoFocus={focusedId === block.id}
+                                onFocused={handleFocused}
                             />
                         ))}
                     </div>
