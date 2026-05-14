@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import clsx from 'clsx';
 import type { ScriptBlock } from '../hooks/useEditor';
-import { Film, Users, ChevronLeft, ChevronRight, Hash } from 'lucide-react';
+import { Film, Users, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface ScriptNavigatorProps {
     blocks: ScriptBlock[];
