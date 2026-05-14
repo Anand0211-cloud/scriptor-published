@@ -1,4 +1,4 @@
-import { type KeyboardEvent, useRef, useEffect, useState } from 'react';
+import { type KeyboardEvent, useRef, useEffect, useState, useMemo } from 'react';
 import clsx from 'clsx';
 import type { ScriptBlock, BlockType } from '../hooks/useEditor';
 import { TYPE_MAP } from '../hooks/useEditor';
@@ -13,16 +13,31 @@ interface BlockProps {
     onChangeType: (id: string, type: BlockType) => void;
     autoFocus?: boolean;
     onFocused?: () => void;
+    characterNames?: string[];
 }
 
 const ALL_TYPES: BlockType[] = ['scene', 'action', 'character', 'dialogue', 'parenthetical', 'transition', 'shot'];
 
-export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, onTab, onChangeType, autoFocus, onFocused }: BlockProps) {
+export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, onTab, onChangeType, autoFocus, onFocused, characterNames = [] }: BlockProps) {
     const ref = useRef<HTMLDivElement>(null);
     const [showTypeMenu, setShowTypeMenu] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     // Track whether the latest content change came from local user typing
     const isLocalEdit = useRef(false);
+
+    // Character autocomplete state
+    const [showAutoComplete, setShowAutoComplete] = useState(false);
+    const [acSelectedIndex, setAcSelectedIndex] = useState(0);
+    const acRef = useRef<HTMLDivElement>(null);
+
+    // Filter character suggestions based on current typed text
+    const acSuggestions = useMemo(() => {
+        if (block.type !== 'character' || !block.content.trim()) return [];
+        const typed = block.content.trim().toUpperCase();
+        return characterNames
+            .filter(name => name.toUpperCase().startsWith(typed) && name.toUpperCase() !== typed)
+            .slice(0, 5);
+    }, [block.type, block.content, characterNames]);
 
     // Close menu when clicking outside
     useEffect(() => {
@@ -88,11 +103,54 @@ export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, on
     }, [autoFocus, block.type, block.content, onFocused]);
 
     const handleKeyDown = (e: KeyboardEvent) => {
+        // Character autocomplete keyboard navigation
+        if (showAutoComplete && acSuggestions.length > 0) {
+            if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                setAcSelectedIndex(prev => (prev + 1) % acSuggestions.length);
+                return;
+            }
+            if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                setAcSelectedIndex(prev => (prev - 1 + acSuggestions.length) % acSuggestions.length);
+                return;
+            }
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const selected = acSuggestions[acSelectedIndex];
+                if (selected) {
+                    isLocalEdit.current = false; // Allow sync to update DOM
+                    onUpdate(block.id, selected);
+                    setShowAutoComplete(false);
+                    // Set cursor to end after name fills
+                    requestAnimationFrame(() => {
+                        if (ref.current) {
+                            ref.current.innerText = selected;
+                            const range = document.createRange();
+                            range.selectNodeContents(ref.current);
+                            range.collapse(false);
+                            const sel = window.getSelection();
+                            sel?.removeAllRanges();
+                            sel?.addRange(range);
+                        }
+                    });
+                }
+                return;
+            }
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                setShowAutoComplete(false);
+                return;
+            }
+        }
+
         if (e.key === 'Enter') {
             e.preventDefault();
+            setShowAutoComplete(false);
             onEnter(block.id, ref.current?.innerText || '');
         } else if (e.key === 'Tab') {
             e.preventDefault();
+            setShowAutoComplete(false);
             onTab(block.id);
         } else if (e.key === 'Backspace') {
             const selection = window.getSelection();
@@ -142,6 +200,14 @@ export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, on
             }
 
             onUpdate(block.id, text);
+
+            // Show autocomplete for character blocks
+            if (block.type === 'character' && text.trim().length > 0) {
+                setShowAutoComplete(true);
+                setAcSelectedIndex(0);
+            } else {
+                setShowAutoComplete(false);
+            }
         }
     };
 
@@ -167,7 +233,7 @@ export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, on
     } else if (block.type === 'parenthetical') {
         responsiveClasses = 'ml-[25%] mr-[15%] md:ml-[1.6in] md:mr-[1.0in] max-w-full md:max-w-[3.4in] text-left';
     } else if (block.type === 'transition') {
-        responsiveClasses = 'text-right ml-auto mr-[0.5in] md:mr-0 w-fit';
+        responsiveClasses = 'text-right ml-auto mr-2 md:mr-0 w-fit';
     }
 
     const handleBlur = () => {
@@ -242,8 +308,27 @@ export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, on
         shot:          'bg-orange-600 text-white border-orange-700',
     };
 
+    // Handle clicking a suggestion from the autocomplete dropdown
+    const handleAcSelect = (name: string) => {
+        isLocalEdit.current = false;
+        onUpdate(block.id, name);
+        setShowAutoComplete(false);
+        requestAnimationFrame(() => {
+            if (ref.current) {
+                ref.current.innerText = name;
+                ref.current.focus();
+                const range = document.createRange();
+                range.selectNodeContents(ref.current);
+                range.collapse(false);
+                const sel = window.getSelection();
+                sel?.removeAllRanges();
+                sel?.addRange(range);
+            }
+        });
+    };
+
     return (
-        <div className="group relative">
+        <div className="group relative" data-block-id={block.id}>
             {/* Type Selector Badge — absolutely positioned OUTSIDE the content flow */}
             <div className="absolute right-full mr-2 top-0 z-30" ref={menuRef}
                  style={{ marginTop: (block.type === 'scene' || block.type === 'character' || block.type === 'transition' || block.type === 'shot') ? '1rem' : '0' }}
@@ -328,6 +413,37 @@ export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, on
                 onClick={enforceCursorGuard}
                 data-placeholder={block.content === '' ? block.type.toUpperCase() : ''}
             />
+
+            {/* Character Autocomplete Dropdown */}
+            {block.type === 'character' && showAutoComplete && acSuggestions.length > 0 && (
+                <div
+                    ref={acRef}
+                    className="absolute z-50 mt-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl py-1 min-w-[200px]"
+                    style={{ left: '2.2in' }}
+                >
+                    {acSuggestions.map((name, i) => (
+                        <button
+                            key={name}
+                            type="button"
+                            onMouseDown={(e) => { e.preventDefault(); handleAcSelect(name); }}
+                            className={clsx(
+                                'w-full text-left px-3 py-1.5 text-xs font-mono font-semibold uppercase tracking-wide flex items-center gap-2 transition-colors cursor-pointer',
+                                i === acSelectedIndex
+                                    ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300'
+                                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800'
+                            )}
+                        >
+                            <span className="w-5 h-5 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 flex items-center justify-center text-[10px] font-bold shrink-0">
+                                {name.charAt(0)}
+                            </span>
+                            {name}
+                        </button>
+                    ))}
+                    <div className="px-3 py-1 border-t border-gray-100 dark:border-gray-800 mt-1">
+                        <span className="text-[9px] text-gray-400">↑↓ navigate · Enter select · Esc close</span>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

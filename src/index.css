@@ -23,12 +23,19 @@
     width: 8.5in;
     max-width: 100%;
     min-height: 11in;
-    /* Industry standard: 1.5in left, 1in right, 1in top/bottom */
-    padding: 1in 1in 1in 1.5in;
+    /* Mobile: balanced padding for centered feel */
+    padding: 24px 32px;
     font-size: 12pt;
     line-height: normal;
     outline: none;
     box-sizing: border-box;
+  }
+
+  /* Desktop: industry standard margins */
+  @media (min-width: 768px) {
+    .screenplay-page {
+      padding: 1in 1in 1in 1.5in;
+    }
   }
 
   [contenteditable]:empty:before {
@@ -77,5 +84,15 @@
   .scrollbar-hide {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+
+  /* Scroll-to highlight animation for navigator */
+  .scroll-highlight {
+    animation: highlight-flash 1.5s ease-out;
+  }
+
+  @keyframes highlight-flash {
+    0% { background-color: rgba(99, 102, 241, 0.15); border-radius: 4px; }
+    100% { background-color: transparent; }
   }
 }
