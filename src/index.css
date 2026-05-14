@@ -17,14 +17,18 @@
     @apply bg-paper dark:bg-bg-primary text-gray-900 dark:text-gray-100 font-sans antialiased overflow-x-hidden selection:bg-accent-500/30 selection:text-accent-200;
   }
 
-  /* Screenplay Editor Specifics - Keeping these intact but refining */
+  /* Screenplay Editor Specifics — Industry standard margins */
   .screenplay-page {
-    @apply bg-white text-black shadow-2xl mx-auto mb-8 p-[1in] font-mono transform transition-transform duration-300;
+    @apply bg-white text-black shadow-2xl mx-auto mb-8 font-mono;
     width: 8.5in;
+    max-width: 100%;
     min-height: 11in;
+    /* Industry standard: 1.5in left, 1in right, 1in top/bottom */
+    padding: 1in 1in 1in 1.5in;
     font-size: 12pt;
     line-height: normal;
     outline: none;
+    box-sizing: border-box;
   }
 
   [contenteditable]:empty:before {

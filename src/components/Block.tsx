@@ -145,20 +145,29 @@ export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, on
         }
     };
 
-    // Responsive classes per type
+    // Industry-standard screenplay formatting margins
+    // Page: 8.5in, padding: 1.5in left + 1.0in right = 6.0in writing area.
+    // All margins below are relative to the writing area edges.
+    // Scene / Action / Shot: full width (left-aligned, spans 6.0in)
+    // Character: ~2.2in from writing-area left (= 3.7in from page edge)
+    // Dialogue: ~1.0in from left, ~0.5in from right (= ~4.5in wide)
+    // Parenthetical: ~1.6in from left, ~1.0in from right (= ~3.4in wide)
+    // Transition: right-aligned with small right margin
     let responsiveClasses = '';
     if (block.type === 'scene') {
-        responsiveClasses = 'ml-4 md:ml-[0.5in] max-w-full md:max-w-[6in]';
+        responsiveClasses = 'max-w-full';
     } else if (block.type === 'action') {
-        responsiveClasses = 'ml-4 md:ml-[0.5in] max-w-full md:max-w-[6in]';
+        responsiveClasses = 'max-w-full';
+    } else if (block.type === 'shot') {
+        responsiveClasses = 'max-w-full';
     } else if (block.type === 'character') {
-        responsiveClasses = 'ml-[35%] md:ml-[2.7in] w-auto text-left';
+        responsiveClasses = 'ml-[35%] md:ml-[2.2in] w-auto text-left';
     } else if (block.type === 'dialogue') {
-        responsiveClasses = 'ml-[15%] mr-[10%] md:ml-[1.5in] md:mr-[1.5in] max-w-full md:max-w-[3.5in] text-left';
+        responsiveClasses = 'ml-[15%] mr-[10%] md:ml-[1.0in] md:mr-[0.5in] max-w-full md:max-w-[4.5in] text-left';
     } else if (block.type === 'parenthetical') {
-        responsiveClasses = 'ml-[25%] mr-[15%] md:ml-[2.1in] md:mr-[2.0in] max-w-full md:max-w-[3.0in] text-left';
+        responsiveClasses = 'ml-[25%] mr-[15%] md:ml-[1.6in] md:mr-[1.0in] max-w-full md:max-w-[3.4in] text-left';
     } else if (block.type === 'transition') {
-        responsiveClasses = 'text-right ml-auto mr-4 md:mr-[0.5in] w-fit';
+        responsiveClasses = 'text-right ml-auto mr-[0.5in] md:mr-0 w-fit';
     }
 
     const handleBlur = () => {
@@ -234,21 +243,23 @@ export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, on
     };
 
     return (
-        <div className="group relative flex items-start gap-0">
-            {/* Type Selector Badge */}
-            <div className="relative shrink-0" ref={menuRef}>
+        <div className="group relative">
+            {/* Type Selector Badge — absolutely positioned OUTSIDE the content flow */}
+            <div className="absolute right-full mr-2 top-0 z-30" ref={menuRef}
+                 style={{ marginTop: (block.type === 'scene' || block.type === 'character' || block.type === 'transition' || block.type === 'shot') ? '1rem' : '0' }}
+            >
                 <button
                     type="button"
                     onClick={() => setShowTypeMenu(prev => !prev)}
                     className={clsx(
-                        'flex items-center gap-1 rounded-md border text-[10px] font-bold uppercase tracking-wide px-2 py-1 mt-[2px] cursor-pointer select-none transition-all duration-150 whitespace-nowrap shadow-sm',
-                        'opacity-60 group-hover:opacity-100 focus:opacity-100',
+                        'flex items-center gap-1 rounded-md border text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 cursor-pointer select-none transition-all duration-150 whitespace-nowrap shadow-sm',
+                        'opacity-0 group-hover:opacity-100 focus:opacity-100',
                         typeColor[block.type]
                     )}
                     title="Change block type"
                 >
-                    <span className="hidden sm:inline">{TYPE_MAP[block.type]}</span>
-                    <span className="sm:hidden">{block.type.slice(0, 3).toUpperCase()}</span>
+                    <span className="hidden md:inline">{TYPE_MAP[block.type]}</span>
+                    <span className="md:hidden">{block.type.slice(0, 3).toUpperCase()}</span>
                     <ChevronDown className="h-3 w-3 shrink-0 opacity-70" />
                 </button>
 
@@ -256,7 +267,6 @@ export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, on
                 {showTypeMenu && (
                     <div className="absolute left-0 top-full mt-1 z-50 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl py-1.5 min-w-[180px]">
                         {ALL_TYPES.map(t => {
-                            // Per-type dot colors matching the badge colors
                             const dotColor: Record<BlockType, string> = {
                                 scene: 'bg-amber-600',
                                 action: 'bg-slate-600',
@@ -295,16 +305,17 @@ export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, on
                 )}
             </div>
 
-            {/* Content Editable Area */}
+            {/* Content Editable Area — margins measured from page edge, no badge interference */}
             <div
                 ref={ref}
                 contentEditable
                 suppressContentEditableWarning
                 className={clsx(
-                    'outline-none flex-1',
+                    'outline-none w-full',
                     responsiveClasses,
                     block.type === 'scene' ? 'uppercase font-bold mt-4 mb-2' : '',
                     block.type === 'action' ? 'mb-2' : '',
+                    block.type === 'shot' ? 'uppercase font-bold mt-2 mb-2' : '',
                     block.type === 'character' ? 'uppercase mt-4 mb-0' : '',
                     block.type === 'dialogue' ? 'mb-2' : '',
                     block.type === 'parenthetical' ? 'mb-0 lowercase' : '',
