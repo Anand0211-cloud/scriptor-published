@@ -227,11 +227,14 @@ export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, on
     } else if (block.type === 'shot') {
         responsiveClasses = 'max-w-full';
     } else if (block.type === 'character') {
-        responsiveClasses = 'ml-[35%] md:ml-[2.2in] w-auto text-left';
+        // Mobile: moderate indent that won't overflow. Desktop: industry standard.
+        responsiveClasses = 'ml-[20%] md:ml-[2.2in] w-auto text-left';
     } else if (block.type === 'dialogue') {
-        responsiveClasses = 'ml-[15%] mr-[10%] md:ml-[1.0in] md:mr-[0.5in] max-w-full md:max-w-[4.5in] text-left';
+        // Mobile: gentle indent. Desktop: industry standard.
+        responsiveClasses = 'ml-[8%] mr-[4%] md:ml-[1.0in] md:mr-[0.5in] max-w-full md:max-w-[4.5in] text-left';
     } else if (block.type === 'parenthetical') {
-        responsiveClasses = 'ml-[25%] mr-[15%] md:ml-[1.6in] md:mr-[1.0in] max-w-full md:max-w-[3.4in] text-left';
+        // Mobile: moderate indent. Desktop: industry standard.
+        responsiveClasses = 'ml-[12%] mr-[8%] md:ml-[1.6in] md:mr-[1.0in] max-w-full md:max-w-[3.4in] text-left';
     } else if (block.type === 'transition') {
         responsiveClasses = 'text-right ml-auto mr-2 md:mr-0 w-fit';
     }
@@ -329,22 +332,24 @@ export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, on
 
     return (
         <div className="group relative" data-block-id={block.id}>
-            {/* Type Selector Badge — absolutely positioned OUTSIDE the content flow */}
-            <div className="absolute right-full mr-2 top-0 z-30" ref={menuRef}
-                 style={{ marginTop: (block.type === 'scene' || block.type === 'character' || block.type === 'transition' || block.type === 'shot') ? '1rem' : '0' }}
+            {/* Type Selector Badge — inline on mobile, absolutely positioned on desktop */}
+            {/* MOBILE: inline flow, always visible. DESKTOP: absolute positioned, hover-reveal */}
+            <div
+                className="relative md:absolute md:right-full md:mr-2 md:top-0 z-30 flex items-center mb-1 md:mb-0"
+                ref={menuRef}
+                style={{ marginTop: typeof window !== 'undefined' && window.innerWidth >= 768 ? ((block.type === 'scene' || block.type === 'character' || block.type === 'transition' || block.type === 'shot') ? '1rem' : '0') : '0' }}
             >
                 <button
                     type="button"
                     onClick={() => setShowTypeMenu(prev => !prev)}
                     className={clsx(
                         'flex items-center gap-1 rounded-md border text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 cursor-pointer select-none transition-all duration-150 whitespace-nowrap shadow-sm',
-                        'opacity-0 group-hover:opacity-100 focus:opacity-100',
+                        'opacity-100 md:opacity-0 md:group-hover:opacity-100 md:focus:opacity-100',
                         typeColor[block.type]
                     )}
                     title="Change block type"
                 >
-                    <span className="hidden md:inline">{TYPE_MAP[block.type]}</span>
-                    <span className="md:hidden">{block.type.slice(0, 3).toUpperCase()}</span>
+                    {TYPE_MAP[block.type]}
                     <ChevronDown className="h-3 w-3 shrink-0 opacity-70" />
                 </button>
 
@@ -418,8 +423,7 @@ export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, on
             {block.type === 'character' && showAutoComplete && acSuggestions.length > 0 && (
                 <div
                     ref={acRef}
-                    className="absolute z-50 mt-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl py-1 min-w-[200px]"
-                    style={{ left: '2.2in' }}
+                    className="absolute z-50 mt-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl py-1 min-w-[160px] md:min-w-[200px] left-[8%] md:left-[2.2in]"
                 >
                     {acSuggestions.map((name, i) => (
                         <button

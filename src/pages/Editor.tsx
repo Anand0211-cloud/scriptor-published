@@ -188,11 +188,11 @@ export default function Editor() {
                 )}
 
                 {/* Editor Workspace */}
-                <div className="flex-1 overflow-auto py-6 sm:py-10 px-4 sm:px-6 flex justify-center bg-gray-100 dark:bg-gray-950 relative">
+                <div className="flex-1 overflow-auto py-6 sm:py-10 px-2 sm:px-6 pb-24 sm:pb-10 flex justify-center bg-gray-100 dark:bg-gray-950 relative">
                     {/* Texture overlay for "desk" feel */}
                     <div className="absolute inset-0 pointer-events-none opacity-[0.03] dark:opacity-[0.02]" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23000000\' fill-opacity=\'1\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")' }}></div>
 
-                <div className="screenplay-page bg-white shadow-2xl min-h-0 md:min-h-[11in] w-full max-w-[8.5in] relative z-10 transition-shadow duration-300 overflow-visible">
+                <div className="screenplay-page bg-white shadow-2xl min-h-0 md:min-h-[11in] w-full max-w-[8.5in] relative z-10 transition-shadow duration-300 overflow-x-hidden">
                         <div ref={editorRef} className="font-mono text-[14px] md:text-[12pt] text-black leading-tight">
                             {blocks.map(block => (
                                 <Block
