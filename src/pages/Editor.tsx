@@ -17,6 +17,28 @@ export default function Editor() {
     const editorRef = useRef<HTMLDivElement>(null);
     const [showNavigator, setShowNavigator] = useState(() => typeof window !== 'undefined' ? window.innerWidth >= 768 : true);
 
+    // Prevent body/html scrolling on mobile to keep focus alignment stable when keyboard opens
+    useEffect(() => {
+        if (typeof window === 'undefined' || window.innerWidth >= 768) return;
+        
+        const originalHtmlOverflow = document.documentElement.style.overflow;
+        const originalHtmlHeight = document.documentElement.style.height;
+        const originalBodyOverflow = document.body.style.overflow;
+        const originalBodyHeight = document.body.style.height;
+
+        document.documentElement.style.overflow = 'hidden';
+        document.documentElement.style.height = '100%';
+        document.body.style.overflow = 'hidden';
+        document.body.style.height = '100%';
+
+        return () => {
+            document.documentElement.style.overflow = originalHtmlOverflow;
+            document.documentElement.style.height = originalHtmlHeight;
+            document.body.style.overflow = originalBodyOverflow;
+            document.body.style.height = originalBodyHeight;
+        };
+    }, []);
+
     const handleFocused = useCallback(() => {
         setFocusedId(null);
     }, [setFocusedId]);
@@ -251,7 +273,7 @@ export default function Editor() {
                                 />
                             ))}
                             {/* Page Bottom Spacer to allow typewriter-style scrolling past the end */}
-                            <div className="h-[60vh] pointer-events-none" />
+                            <div className="h-[60vh] md:h-[80vh] pointer-events-none" />
                         </div>
                     </div>
                 </div>

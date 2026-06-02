@@ -70,12 +70,15 @@ export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, on
             // Auto-scroll the newly focused block to the center of the viewport without horizontal shifting
             const container = ref.current.closest('.overflow-y-auto');
             if (container) {
-                const elementRect = ref.current.getBoundingClientRect();
-                const containerRect = container.getBoundingClientRect();
-                const elementTopInContainer = elementRect.top - containerRect.top + container.scrollTop;
-                const targetScrollTop = elementTopInContainer - (containerRect.height / 2) + (elementRect.height / 2);
-                container.scrollTo({ top: targetScrollTop, behavior: 'auto' });
-                container.scrollLeft = 0;
+                if (window.innerWidth < 768) {
+                    const el = ref.current;
+                    setTimeout(() => {
+                        el.scrollIntoView({ block: 'center', inline: 'nearest' });
+                    }, 80);
+                } else {
+                    // Desktop: use scrollIntoView to center the focused element natively and reliably
+                    ref.current.scrollIntoView({ block: 'center', inline: 'nearest' });
+                }
             }
 
             // Special handling for Parentheticals with "()"
@@ -213,15 +216,28 @@ export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, on
             onUpdate(block.id, text);
 
             // Auto-scroll to center if typing gets close to the bottom of the screen without horizontal shifting
-            const rect = ref.current.getBoundingClientRect();
-            if (rect.bottom > window.innerHeight * 0.6) {
-                const container = ref.current.closest('.overflow-y-auto');
-                if (container) {
+            const container = ref.current.closest('.overflow-y-auto');
+            if (container) {
+                const rect = ref.current.getBoundingClientRect();
+                if (window.innerWidth < 768) {
+                    const vv = window.visualViewport;
+                    const vvOffset = vv ? vv.offsetTop : 0;
+                    const vvHeight = vv ? vv.height : window.innerHeight;
+                    const elementVisualBottom = rect.bottom - vvOffset;
+
+                    // Trigger scroll if typing cursor goes below 60% of visual viewport height
+                    if (elementVisualBottom > vvHeight * 0.6) {
+                        const el = ref.current;
+                        setTimeout(() => {
+                            el.scrollIntoView({ block: 'center', inline: 'nearest' });
+                        }, 50);
+                    }
+                } else {
+                    // Desktop: Trigger scroll if the active typing cursor goes below 55% of the scroll container height
                     const containerRect = container.getBoundingClientRect();
-                    const elementTopInContainer = rect.top - containerRect.top + container.scrollTop;
-                    const targetScrollTop = elementTopInContainer - (containerRect.height / 2) + (rect.height / 2);
-                    container.scrollTo({ top: targetScrollTop, behavior: 'auto' });
-                    container.scrollLeft = 0;
+                    if (rect.bottom > containerRect.top + containerRect.height * 0.55) {
+                        ref.current.scrollIntoView({ block: 'center', inline: 'nearest' });
+                    }
                 }
             }
 
@@ -245,19 +261,19 @@ export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, on
     // Transition: right-aligned with small right margin
     let responsiveClasses = '';
     if (block.type === 'scene') {
-        responsiveClasses = 'max-w-full';
+        responsiveClasses = 'w-full max-w-full';
     } else if (block.type === 'action') {
-        responsiveClasses = 'max-w-full';
+        responsiveClasses = 'w-full max-w-full';
     } else if (block.type === 'shot') {
-        responsiveClasses = 'max-w-full';
+        responsiveClasses = 'w-full max-w-full';
     } else if (block.type === 'character') {
-        responsiveClasses = 'ml-[36.7%] md:ml-[2.2in] w-auto text-left';
+        responsiveClasses = 'w-auto ml-[36.7%] md:ml-[2.2in] text-left';
     } else if (block.type === 'dialogue') {
-        responsiveClasses = 'ml-[16.7%] mr-[8.3%] md:ml-[1.0in] md:mr-[0.5in] max-w-full md:max-w-[4.5in] text-left';
+        responsiveClasses = 'w-auto md:w-full ml-[16.7%] mr-[8.3%] md:ml-[1.0in] md:mr-[0.5in] max-w-full md:max-w-[4.5in] text-left';
     } else if (block.type === 'parenthetical') {
-        responsiveClasses = 'ml-[26.7%] mr-[16.7%] md:ml-[1.6in] md:mr-[1.0in] max-w-full md:max-w-[3.4in] text-left';
+        responsiveClasses = 'w-auto md:w-full ml-[26.7%] mr-[16.7%] md:ml-[1.6in] md:mr-[1.0in] max-w-full md:max-w-[3.4in] text-left';
     } else if (block.type === 'transition') {
-        responsiveClasses = 'text-right ml-auto mr-2 md:mr-0 w-fit';
+        responsiveClasses = 'w-fit text-right ml-auto mr-2 md:mr-0';
     }
 
     const handleBlur = () => {
@@ -422,7 +438,7 @@ export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, on
                 contentEditable
                 suppressContentEditableWarning
                 className={clsx(
-                    'outline-none w-full',
+                    'outline-none',
                     responsiveClasses,
                     block.type === 'scene' ? 'uppercase font-bold mt-4 mb-2' : '',
                     block.type === 'action' ? 'mb-2' : '',
