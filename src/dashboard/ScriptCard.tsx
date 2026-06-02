@@ -78,7 +78,7 @@ export default function ScriptCard({ script, onRename, onDelete }: ScriptCardPro
                 </div>
             </Link>
 
-            <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-y-1 group-hover:translate-y-0">
+            <div className="absolute top-2 right-2 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-200 translate-y-0 md:translate-y-1 md:group-hover:translate-y-0">
                 <div className="relative">
                     <button
                         onClick={(e) => {

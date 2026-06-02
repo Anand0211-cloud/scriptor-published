@@ -65,7 +65,18 @@ export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, on
 
     useEffect(() => {
         if (autoFocus && ref.current) {
-            ref.current.focus();
+            ref.current.focus({ preventScroll: true });
+
+            // Auto-scroll the newly focused block to the center of the viewport without horizontal shifting
+            const container = ref.current.closest('.overflow-y-auto');
+            if (container) {
+                const elementRect = ref.current.getBoundingClientRect();
+                const containerRect = container.getBoundingClientRect();
+                const elementTopInContainer = elementRect.top - containerRect.top + container.scrollTop;
+                const targetScrollTop = elementTopInContainer - (containerRect.height / 2) + (elementRect.height / 2);
+                container.scrollTo({ top: targetScrollTop, behavior: 'auto' });
+                container.scrollLeft = 0;
+            }
 
             // Special handling for Parentheticals with "()"
             if (block.type === 'parenthetical' && (block.content === '()' || block.content === '')) {
@@ -201,6 +212,19 @@ export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, on
 
             onUpdate(block.id, text);
 
+            // Auto-scroll to center if typing gets close to the bottom of the screen without horizontal shifting
+            const rect = ref.current.getBoundingClientRect();
+            if (rect.bottom > window.innerHeight * 0.6) {
+                const container = ref.current.closest('.overflow-y-auto');
+                if (container) {
+                    const containerRect = container.getBoundingClientRect();
+                    const elementTopInContainer = rect.top - containerRect.top + container.scrollTop;
+                    const targetScrollTop = elementTopInContainer - (containerRect.height / 2) + (rect.height / 2);
+                    container.scrollTo({ top: targetScrollTop, behavior: 'auto' });
+                    container.scrollLeft = 0;
+                }
+            }
+
             // Show autocomplete for character blocks
             if (block.type === 'character' && text.trim().length > 0) {
                 setShowAutoComplete(true);
@@ -227,14 +251,11 @@ export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, on
     } else if (block.type === 'shot') {
         responsiveClasses = 'max-w-full';
     } else if (block.type === 'character') {
-        // Mobile: moderate indent that won't overflow. Desktop: industry standard.
-        responsiveClasses = 'ml-[20%] md:ml-[2.2in] w-auto text-left';
+        responsiveClasses = 'ml-[36.7%] md:ml-[2.2in] w-auto text-left';
     } else if (block.type === 'dialogue') {
-        // Mobile: gentle indent. Desktop: industry standard.
-        responsiveClasses = 'ml-[8%] mr-[4%] md:ml-[1.0in] md:mr-[0.5in] max-w-full md:max-w-[4.5in] text-left';
+        responsiveClasses = 'ml-[16.7%] mr-[8.3%] md:ml-[1.0in] md:mr-[0.5in] max-w-full md:max-w-[4.5in] text-left';
     } else if (block.type === 'parenthetical') {
-        // Mobile: moderate indent. Desktop: industry standard.
-        responsiveClasses = 'ml-[12%] mr-[8%] md:ml-[1.6in] md:mr-[1.0in] max-w-full md:max-w-[3.4in] text-left';
+        responsiveClasses = 'ml-[26.7%] mr-[16.7%] md:ml-[1.6in] md:mr-[1.0in] max-w-full md:max-w-[3.4in] text-left';
     } else if (block.type === 'transition') {
         responsiveClasses = 'text-right ml-auto mr-2 md:mr-0 w-fit';
     }
@@ -335,7 +356,7 @@ export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, on
             {/* Type Selector Badge — inline on mobile, absolutely positioned on desktop */}
             {/* MOBILE: inline flow, always visible. DESKTOP: absolute positioned, hover-reveal */}
             <div
-                className="relative md:absolute md:right-full md:mr-2 md:top-0 z-30 flex items-center mb-1 md:mb-0"
+                className="relative md:absolute md:right-full md:mr-2 md:top-0 z-30 hidden md:flex items-center mb-1 md:mb-0"
                 ref={menuRef}
                 style={{ marginTop: typeof window !== 'undefined' && window.innerWidth >= 768 ? ((block.type === 'scene' || block.type === 'character' || block.type === 'transition' || block.type === 'shot') ? '1rem' : '0') : '0' }}
             >

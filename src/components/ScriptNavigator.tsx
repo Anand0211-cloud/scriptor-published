@@ -6,6 +6,7 @@ import { Film, Users, ChevronLeft, ChevronRight } from 'lucide-react';
 interface ScriptNavigatorProps {
     blocks: ScriptBlock[];
     onScrollToBlock: (blockId: string) => void;
+    onClose?: () => void;
 }
 
 type NavTab = 'scenes' | 'characters';
@@ -22,7 +23,7 @@ interface CharacterEntry {
     firstBlockId: string;
 }
 
-export default function ScriptNavigator({ blocks, onScrollToBlock }: ScriptNavigatorProps) {
+export default function ScriptNavigator({ blocks, onScrollToBlock, onClose }: ScriptNavigatorProps) {
     const [collapsed, setCollapsed] = useState(false);
     const [activeTab, setActiveTab] = useState<NavTab>('scenes');
 
@@ -95,12 +96,18 @@ export default function ScriptNavigator({ blocks, onScrollToBlock }: ScriptNavig
     }
 
     return (
-        <div className="hidden md:flex flex-col w-[260px] shrink-0 bg-gray-900/95 border-r border-gray-800 overflow-hidden">
+        <div className="fixed inset-y-0 left-0 z-40 w-64 md:static md:w-[260px] md:z-auto bg-gray-900 border-r border-gray-800 flex flex-col overflow-hidden shadow-2xl md:shadow-none">
             {/* Header */}
             <div className="flex items-center justify-between px-3 py-3 border-b border-gray-800">
                 <span className="text-[11px] uppercase tracking-wider text-gray-400 font-semibold">Navigator</span>
                 <button
-                    onClick={() => setCollapsed(true)}
+                    onClick={() => {
+                        if (onClose) {
+                            onClose();
+                        } else {
+                            setCollapsed(true);
+                        }
+                    }}
                     className="p-1 rounded hover:bg-gray-800 text-gray-500 hover:text-gray-300 transition-colors"
                     title="Collapse"
                 >

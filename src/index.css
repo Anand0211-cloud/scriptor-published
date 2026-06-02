@@ -19,12 +19,13 @@
 
   /* Screenplay Editor Specifics — Industry standard margins */
   .screenplay-page {
-    @apply bg-white text-black shadow-2xl mx-auto mb-8 font-mono;
+    @apply bg-white text-black shadow-lg mx-auto mb-4 rounded-xl;
+    font-family: 'Courier Prime', 'Courier', monospace;
     width: 100%;
     max-width: 100%;
-    min-height: auto;
-    /* Mobile: compact padding that prevents overflow */
-    padding: 16px 12px;
+    min-height: calc(100vh - 7rem);
+    /* Mobile padding: proportional left/right for page feel, large bottom padding for keyboard/toolbar spacer */
+    padding: 24px 11.765% 160px 17.647%;
     font-size: 12pt;
     line-height: normal;
     outline: none;
@@ -36,6 +37,7 @@
   /* Desktop: industry standard page dimensions & margins */
   @media (min-width: 768px) {
     .screenplay-page {
+      @apply shadow-2xl rounded-none mb-8;
       width: 8.5in;
       min-height: 11in;
       padding: 1in 1in 1in 1.5in;

@@ -1,21 +1,40 @@
 import { useParams } from 'react-router-dom';
-import { useEditor } from '../hooks/useEditor';
+import { useEditor, TYPE_MAP } from '../hooks/useEditor';
+import type { BlockType } from '../hooks/useEditor';
 import Block from '../components/Block';
 import ScriptNavigator from '../components/ScriptNavigator';
 import { Download, Save, ArrowLeft, Loader2, PanelLeftClose, PanelLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
-import { useRef, useCallback, useState, useMemo } from 'react';
+import { useRef, useCallback, useState, useMemo, useEffect } from 'react';
+import clsx from 'clsx';
+
+const ALL_TYPES: BlockType[] = ['scene', 'action', 'character', 'dialogue', 'parenthetical', 'transition', 'shot'];
 
 export default function Editor() {
     const { id } = useParams();
     const { blocks, title, setTitle, loading, saving, saveScript, updateBlock, changeType, handleEnter, handleBackspaceAtStart, handleTab, focusedId, setFocusedId } = useEditor(id);
     const editorRef = useRef<HTMLDivElement>(null);
-    const [showNavigator, setShowNavigator] = useState(true);
+    const [showNavigator, setShowNavigator] = useState(() => typeof window !== 'undefined' ? window.innerWidth >= 768 : true);
 
     const handleFocused = useCallback(() => {
         setFocusedId(null);
     }, [setFocusedId]);
+
+    // Enforce horizontal scroll position is always 0 on the scroll container to prevent browser layout shifts
+    useEffect(() => {
+        const container = editorRef.current?.closest('.overflow-y-auto');
+        if (!container) return;
+        const handleScroll = () => {
+            if (container.scrollLeft !== 0) {
+                container.scrollLeft = 0;
+            }
+        };
+        container.addEventListener('scroll', handleScroll);
+        // Do a clean check immediately
+        container.scrollLeft = 0;
+        return () => container.removeEventListener('scroll', handleScroll);
+    }, [loading]);
 
     // Extract unique character names for autocomplete
     const characterNames = useMemo(() => {
@@ -31,8 +50,16 @@ export default function Editor() {
     // Scroll to a specific block by ID (smooth scroll, no cursor focus)
     const scrollToBlock = useCallback((blockId: string) => {
         const el = document.querySelector(`[data-block-id="${blockId}"]`);
-        if (el) {
-            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        if (el && el instanceof HTMLElement) {
+            const container = el.closest('.overflow-y-auto');
+            if (container) {
+                const elementRect = el.getBoundingClientRect();
+                const containerRect = container.getBoundingClientRect();
+                const elementTopInContainer = elementRect.top - containerRect.top + container.scrollTop;
+                const targetScrollTop = elementTopInContainer - (containerRect.height / 2) + (elementRect.height / 2);
+                container.scrollTo({ top: targetScrollTop, behavior: 'smooth' });
+                container.scrollLeft = 0;
+            }
             // Brief highlight flash
             el.classList.add('scroll-highlight');
             setTimeout(() => el.classList.remove('scroll-highlight'), 1500);
@@ -126,7 +153,7 @@ export default function Editor() {
                     {/* Navigator toggle */}
                     <button
                         onClick={() => setShowNavigator(prev => !prev)}
-                        className="hidden md:flex p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
+                        className="flex p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 transition-colors"
                         title={showNavigator ? 'Hide Navigator' : 'Show Navigator'}
                     >
                         {showNavigator ? <PanelLeftClose className="h-4.5 w-4.5" /> : <PanelLeft className="h-4.5 w-4.5" />}
@@ -178,21 +205,36 @@ export default function Editor() {
             </header>
 
             {/* Main Content: Navigator Sidebar + Editor Workspace */}
-            <div className="flex-1 flex overflow-hidden">
+            <div className="flex-1 flex overflow-hidden relative">
+                {/* Mobile Navigator Backdrop */}
+                {showNavigator && (
+                    <div
+                        className="fixed inset-0 bg-black/60 z-30 md:hidden backdrop-blur-sm"
+                        onClick={() => setShowNavigator(false)}
+                    />
+                )}
+
                 {/* Script Navigator Sidebar */}
                 {showNavigator && (
                     <ScriptNavigator
                         blocks={blocks}
-                        onScrollToBlock={scrollToBlock}
+                        onScrollToBlock={(blockId) => {
+                            scrollToBlock(blockId);
+                            // Auto-close navigator on mobile after clicking
+                            if (window.innerWidth < 768) {
+                                setShowNavigator(false);
+                            }
+                        }}
+                        onClose={() => setShowNavigator(false)}
                     />
                 )}
 
                 {/* Editor Workspace */}
-                <div className="flex-1 overflow-auto py-6 sm:py-10 px-2 sm:px-6 pb-24 sm:pb-10 flex justify-center bg-gray-100 dark:bg-gray-950 relative">
+                <div className="flex-1 overflow-y-auto overflow-x-hidden pt-4 md:pt-10 px-4 md:px-6 pb-4 md:pb-10 flex justify-center bg-gray-100 dark:bg-gray-950 relative">
                     {/* Texture overlay for "desk" feel */}
                     <div className="absolute inset-0 pointer-events-none opacity-[0.03] dark:opacity-[0.02]" style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg width=\'60\' height=\'60\' viewBox=\'0 0 60 60\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'none\' fill-rule=\'evenodd\'%3E%3Cg fill=\'%23000000\' fill-opacity=\'1\'%3E%3Cpath d=\'M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z\'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")' }}></div>
 
-                <div className="screenplay-page bg-white shadow-2xl min-h-0 md:min-h-[11in] w-full max-w-[8.5in] relative z-10 transition-shadow duration-300 overflow-x-hidden">
+                    <div className="screenplay-page w-full max-w-[8.5in] relative z-10 transition-shadow duration-300 overflow-x-hidden">
                         <div ref={editorRef} className="font-mono text-[14px] md:text-[12pt] text-black leading-tight">
                             {blocks.map(block => (
                                 <Block
@@ -208,9 +250,51 @@ export default function Editor() {
                                     characterNames={characterNames}
                                 />
                             ))}
+                            {/* Page Bottom Spacer to allow typewriter-style scrolling past the end */}
+                            <div className="h-[60vh] pointer-events-none" />
                         </div>
                     </div>
                 </div>
+
+                {/* Sticky Bottom Formatting Toolbar for Mobile */}
+                {focusedId !== null && (
+                    <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 shadow-[0_-4px_12px_rgba(0,0,0,0.1)] p-2 flex gap-1.5 overflow-x-auto select-none scrollbar-hide shrink-0">
+                        {ALL_TYPES.map(type => {
+                            const isCurrent = blocks.find(b => b.id === focusedId)?.type === type;
+                            const label = TYPE_MAP[type];
+                            
+                            const activeColors: Record<BlockType, string> = {
+                                scene:         'bg-amber-600 text-white',
+                                action:        'bg-slate-600 text-white',
+                                character:     'bg-violet-600 text-white',
+                                dialogue:      'bg-emerald-600 text-white',
+                                parenthetical: 'bg-cyan-600 text-white',
+                                transition:    'bg-rose-600 text-white',
+                                shot:          'bg-orange-600 text-white',
+                            };
+
+                            return (
+                                <button
+                                    key={type}
+                                    type="button"
+                                    onMouseDown={(e) => {
+                                        // Use onMouseDown + preventDefault to avoid losing focus from contenteditable!
+                                        e.preventDefault();
+                                        changeType(focusedId, type);
+                                    }}
+                                    className={clsx(
+                                        'px-3.5 py-2 rounded-lg text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all duration-150 active:scale-95 border cursor-pointer',
+                                        isCurrent
+                                            ? `${activeColors[type]} border-transparent`
+                                            : 'bg-gray-50 dark:bg-gray-800/60 text-gray-600 dark:text-gray-400 border-gray-200 dark:border-gray-700/80 hover:bg-gray-100 dark:hover:bg-gray-800'
+                                    )}
+                                >
+                                    {label}
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
         </div>
     );
