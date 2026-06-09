@@ -32,6 +32,31 @@ export default function Editor() {
     } = useEditor(id);
     const editorRef = useRef<HTMLDivElement>(null);
     const [showNavigator, setShowNavigator] = useState(() => typeof window !== 'undefined' ? window.innerWidth >= 768 : true);
+    const [visualViewportOffset, setVisualViewportOffset] = useState(0);
+
+    // Track visual viewport changes on mobile to slide the formatting toolbar above the keyboard
+    useEffect(() => {
+        if (typeof window === 'undefined' || !window.visualViewport) return;
+
+        const handleViewportChange = () => {
+            const vv = window.visualViewport;
+            if (!vv) return;
+            // Calculate height of virtual keyboard (and any browser bottom bars)
+            const offset = window.innerHeight - vv.height;
+            setVisualViewportOffset(Math.max(0, offset));
+        };
+
+        window.visualViewport.addEventListener('resize', handleViewportChange);
+        window.visualViewport.addEventListener('scroll', handleViewportChange);
+        
+        // Initial run
+        handleViewportChange();
+
+        return () => {
+            window.visualViewport?.removeEventListener('resize', handleViewportChange);
+            window.visualViewport?.removeEventListener('scroll', handleViewportChange);
+        };
+    }, []);
 
     // Prevent body/html scrolling on mobile to keep focus alignment stable when keyboard opens
     useEffect(() => {
@@ -300,7 +325,14 @@ export default function Editor() {
 
                 {/* Sticky Bottom Formatting Toolbar for Mobile */}
                 {focusedId !== null && (
-                    <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 shadow-[0_-4px_12px_rgba(0,0,0,0.1)] p-2 flex gap-1.5 overflow-x-auto select-none scrollbar-hide shrink-0">
+                    <div
+                        className="md:hidden fixed left-0 right-0 z-40 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 shadow-[0_-4px_12px_rgba(0,0,0,0.1)] p-2 flex gap-1.5 overflow-x-auto select-none scrollbar-hide shrink-0"
+                        style={{
+                            bottom: `${visualViewportOffset}px`,
+                            paddingBottom: visualViewportOffset > 0 ? '8px' : 'calc(8px + env(safe-area-inset-bottom))',
+                            transition: 'bottom 80ms ease-out'
+                        }}
+                    >
                         {ALL_TYPES.map(type => {
                             const isCurrent = blocks.find(b => b.id === focusedId)?.type === type;
                             const label = TYPE_MAP[type];
