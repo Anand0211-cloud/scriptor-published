@@ -48,6 +48,7 @@ export function useEditor(scriptId?: string) {
 
     // Track focused block to ensure focus persistence after renders
     const [focusedId, setFocusedId] = useState<string | null>(null);
+    const [autofocusId, setAutofocusId] = useState<string | null>(null);
 
     // Refs for autosave tracking
     const initialLoadDone = useRef(false);
@@ -157,6 +158,7 @@ export function useEditor(scriptId?: string) {
             return newBlocks;
         });
         setFocusedId(newBlock.id);
+        setAutofocusId(newBlock.id);
     }, []);
 
     const changeType = useCallback((id: string, type: BlockType) => {
@@ -176,7 +178,10 @@ export function useEditor(scriptId?: string) {
             return newBlocks;
         });
         // Focus the previous block AFTER setBlocks, not inside the updater
-        if (prevBlockId) setFocusedId(prevBlockId);
+        if (prevBlockId) {
+            setFocusedId(prevBlockId);
+            setAutofocusId(prevBlockId);
+        }
     }, []);
 
     // Handle "Enter" key
@@ -202,6 +207,7 @@ export function useEditor(scriptId?: string) {
         });
         // Focus the new block AFTER setBlocks
         setFocusedId(newId);
+        setAutofocusId(newId);
     }, []);
 
     // Handle "Backspace" key at start of block
@@ -224,7 +230,10 @@ export function useEditor(scriptId?: string) {
             return newBlocks;
         });
         // Focus the target block AFTER setBlocks
-        if (targetId) setFocusedId(targetId);
+        if (targetId) {
+            setFocusedId(targetId);
+            setAutofocusId(targetId);
+        }
     }, []);
 
     // Handle "Tab" key to cycle types
@@ -273,6 +282,8 @@ export function useEditor(scriptId?: string) {
         handleBackspaceAtStart,
         handleTab,
         focusedId,
-        setFocusedId
+        setFocusedId,
+        autofocusId,
+        setAutofocusId
     };
 }

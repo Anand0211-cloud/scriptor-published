@@ -14,11 +14,25 @@ interface BlockProps {
     autoFocus?: boolean;
     onFocused?: () => void;
     characterNames?: string[];
+    onFocusActive?: (id: string) => void;
+    onBlurActive?: (id: string) => void;
 }
 
 const ALL_TYPES: BlockType[] = ['scene', 'action', 'character', 'dialogue', 'parenthetical', 'transition', 'shot'];
 
-export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, onTab, onChangeType, autoFocus, onFocused, characterNames = [] }: BlockProps) {
+export default function Block({
+    block,
+    onUpdate,
+    onEnter,
+    onBackspaceAtStart,
+    onTab,
+    onChangeType,
+    autoFocus,
+    onFocused,
+    characterNames = [],
+    onFocusActive,
+    onBlurActive
+}: BlockProps) {
     const ref = useRef<HTMLDivElement>(null);
     const [showTypeMenu, setShowTypeMenu] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -285,6 +299,7 @@ export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, on
                 onUpdate(block.id, fixed);
             }
         }
+        onBlurActive?.(block.id);
     };
 
     useEffect(() => {
@@ -451,6 +466,9 @@ export default function Block({ block, onUpdate, onEnter, onBackspaceAtStart, on
                 onKeyDown={handleKeyDown}
                 onInput={handleInput}
                 onBlur={handleBlur}
+                onFocus={() => {
+                    onFocusActive?.(block.id);
+                }}
                 onKeyUp={enforceCursorGuard}
                 onClick={enforceCursorGuard}
                 data-placeholder={block.content === '' ? block.type.toUpperCase() : ''}

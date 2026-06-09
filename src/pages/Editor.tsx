@@ -13,7 +13,23 @@ const ALL_TYPES: BlockType[] = ['scene', 'action', 'character', 'dialogue', 'par
 
 export default function Editor() {
     const { id } = useParams();
-    const { blocks, title, setTitle, loading, saving, saveScript, updateBlock, changeType, handleEnter, handleBackspaceAtStart, handleTab, focusedId, setFocusedId } = useEditor(id);
+    const {
+        blocks,
+        title,
+        setTitle,
+        loading,
+        saving,
+        saveScript,
+        updateBlock,
+        changeType,
+        handleEnter,
+        handleBackspaceAtStart,
+        handleTab,
+        focusedId,
+        setFocusedId,
+        autofocusId,
+        setAutofocusId
+    } = useEditor(id);
     const editorRef = useRef<HTMLDivElement>(null);
     const [showNavigator, setShowNavigator] = useState(() => typeof window !== 'undefined' ? window.innerWidth >= 768 : true);
 
@@ -40,8 +56,8 @@ export default function Editor() {
     }, []);
 
     const handleFocused = useCallback(() => {
-        setFocusedId(null);
-    }, [setFocusedId]);
+        setAutofocusId(null);
+    }, [setAutofocusId]);
 
     // Enforce horizontal scroll position is always 0 on the scroll container to prevent browser layout shifts
     useEffect(() => {
@@ -267,8 +283,12 @@ export default function Editor() {
                                     onBackspaceAtStart={handleBackspaceAtStart}
                                     onTab={handleTab}
                                     onChangeType={changeType}
-                                    autoFocus={focusedId === block.id}
+                                    autoFocus={autofocusId === block.id}
                                     onFocused={handleFocused}
+                                    onFocusActive={setFocusedId}
+                                    onBlurActive={(id) => {
+                                        setFocusedId(current => current === id ? null : current);
+                                    }}
                                     characterNames={characterNames}
                                 />
                             ))}
