@@ -14,7 +14,7 @@
 
   /* Default to Dark Mode aesthetics, but keeping light mode override available */
   body {
-    @apply bg-paper dark:bg-bg-primary text-gray-900 dark:text-gray-100 font-sans antialiased overflow-x-hidden selection:bg-accent-500/30 selection:text-accent-200;
+    @apply bg-paper dark:bg-bg-primary text-gray-900 dark:text-gray-100 font-sans antialiased overflow-x-hidden selection:bg-indigo-500/20;
   }
 
   /* Screenplay Editor Specifics — Industry standard margins */
