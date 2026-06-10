@@ -383,13 +383,18 @@ export default function Block({
     };
 
     return (
-        <div className="group relative" data-block-id={block.id}>
+        <div
+            className={clsx(
+                "group relative",
+                (showTypeMenu || showAutoComplete) && "z-50"
+            )}
+            data-block-id={block.id}
+        >
             {/* Type Selector Badge — inline on mobile, absolutely positioned on desktop */}
             {/* MOBILE: inline flow, always visible. DESKTOP: absolute positioned, hover-reveal */}
             <div
                 className="relative md:absolute md:right-full md:mr-2 md:top-0 z-30 hidden md:flex items-center mb-1 md:mb-0"
                 ref={menuRef}
-                style={{ marginTop: typeof window !== 'undefined' && window.innerWidth >= 768 ? ((block.type === 'scene' || block.type === 'character' || block.type === 'transition' || block.type === 'shot') ? '1rem' : '0') : '0' }}
             >
                 <button
                     type="button"
