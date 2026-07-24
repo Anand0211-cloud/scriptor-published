@@ -184,24 +184,29 @@ export function useEditor(scriptId?: string) {
         }
     }, []);
 
-    // Handle "Enter" key
-    const handleEnter = useCallback((id: string, content: string) => {
+    // Handle "Enter" key — splits text at cursor position
+    const handleEnter = useCallback((id: string, beforeContent: string, afterContent: string, sameType: boolean = false) => {
         // Generate the new block ID before the updater so we can focus it afterwards
         const newId = uuidv4();
         setBlocks(prev => {
-            const currentBlock = prev.find(b => b.id === id);
-            if (!currentBlock) return prev;
+            const index = prev.findIndex(b => b.id === id);
+            if (index === -1) return prev;
+            const currentBlock = prev[index];
 
-            let nextType = NEXT_TYPE[currentBlock.type];
+            // Determine the type for the new block:
+            // Shift+Enter → same type (continue same format)
+            // Enter → next logical type (screenplay flow)
+            let nextType = sameType ? currentBlock.type : NEXT_TYPE[currentBlock.type];
 
             // Special case: If Enter is pressed on an empty Character block, switch it to Action
-            if (currentBlock.type === 'character' && content.trim() === '') {
+            if (currentBlock.type === 'character' && beforeContent.trim() === '' && afterContent.trim() === '') {
                 // Note: This needs to be handled carefully, for now just create next
             }
 
-            const newBlock: ScriptBlock = { id: newId, type: nextType, content: '' };
-            const index = prev.findIndex(b => b.id === id);
+            const newBlock: ScriptBlock = { id: newId, type: nextType, content: afterContent };
             const newBlocks = [...prev];
+            // Update the current block to keep only text before cursor
+            newBlocks[index] = { ...currentBlock, content: beforeContent };
             newBlocks.splice(index + 1, 0, newBlock);
             return newBlocks;
         });

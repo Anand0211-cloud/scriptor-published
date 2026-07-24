@@ -7,7 +7,7 @@ import { ChevronDown } from 'lucide-react';
 interface BlockProps {
     block: ScriptBlock;
     onUpdate: (id: string, content: string) => void;
-    onEnter: (id: string, content: string) => void;
+    onEnter: (id: string, beforeContent: string, afterContent: string, sameType: boolean) => void;
     onBackspaceAtStart: (id: string) => void;
     onTab: (id: string) => void;
     onChangeType: (id: string, type: BlockType) => void;
@@ -117,10 +117,10 @@ export default function Block({
                 }
             }
 
-            // Move cursor to end
+            // Move cursor to start (for split blocks, cursor should be at beginning of carried-over text)
             const range = document.createRange();
             range.selectNodeContents(ref.current);
-            range.collapse(false);
+            range.collapse(true);
             const sel = window.getSelection();
             sel?.removeAllRanges();
             sel?.addRange(range);
@@ -175,7 +175,38 @@ export default function Block({
         if (e.key === 'Enter') {
             e.preventDefault();
             setShowAutoComplete(false);
-            onEnter(block.id, ref.current?.innerText || '');
+
+            const el = ref.current;
+            if (!el) return;
+
+            const selection = window.getSelection();
+            const fullText = el.innerText || '';
+            let cursorPos = fullText.length; // default to end
+
+            if (selection && selection.rangeCount > 0) {
+                const range = selection.getRangeAt(0);
+                // Create a range from start of element to cursor position
+                const preRange = document.createRange();
+                preRange.selectNodeContents(el);
+                preRange.setEnd(range.startContainer, range.startOffset);
+                cursorPos = preRange.toString().length;
+            }
+
+            let beforeText = fullText.substring(0, cursorPos);
+            let afterText = fullText.substring(cursorPos);
+            const sameType = e.shiftKey;
+
+            // Parenthetical cursor guard keeps cursor inside the (), so splitting
+            // can produce stray parens (e.g. before="(text", after=")").
+            // Clean up: re-wrap beforeText and strip parens from afterText.
+            if (block.type === 'parenthetical') {
+                const cleanBefore = beforeText.replace(/[()]/g, '').trim();
+                const cleanAfter = afterText.replace(/[()]/g, '').trim();
+                beforeText = cleanBefore ? `(${cleanBefore})` : '()';
+                afterText = cleanAfter;
+            }
+
+            onEnter(block.id, beforeText, afterText, sameType);
         } else if (e.key === 'Tab') {
             e.preventDefault();
             setShowAutoComplete(false);
