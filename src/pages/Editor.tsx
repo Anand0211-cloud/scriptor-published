@@ -1,9 +1,11 @@
 import { useParams } from 'react-router-dom';
-import { useEditor, TYPE_MAP } from '../hooks/useEditor';
+import { useEditor } from '../hooks/useEditor';
 import type { BlockType } from '../hooks/useEditor';
 import Block from '../components/Block';
 import ScriptNavigator from '../components/ScriptNavigator';
-import { Download, Save, ArrowLeft, Loader2, PanelLeftClose, PanelLeft, ChevronDown, ChevronUp, Check } from 'lucide-react';
+import DraftsPanel from '../components/DraftsPanel';
+import CreateDraftModal from '../components/CreateDraftModal';
+import { Download, Save, ArrowLeft, Loader2, PanelLeftClose, PanelLeft, Layers } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
 import { useRef, useCallback, useState, useMemo, useEffect } from 'react';
@@ -19,7 +21,16 @@ export default function Editor() {
         setTitle,
         loading,
         saving,
+        drafts,
+        activeDraftId,
+        activeDraft,
+        availableScenes,
         saveScript,
+        switchDraft,
+        createDraft,
+        renameDraft,
+        duplicateDraft,
+        deleteDraft,
         updateBlock,
         changeType,
         handleEnter,
@@ -32,26 +43,10 @@ export default function Editor() {
     } = useEditor(id);
     const editorRef = useRef<HTMLDivElement>(null);
     const [showNavigator, setShowNavigator] = useState(() => typeof window !== 'undefined' ? window.innerWidth >= 768 : true);
+    const [showDraftsPanel, setShowDraftsPanel] = useState(false);
+    const [showCreateDraftModal, setShowCreateDraftModal] = useState(false);
     const [visualViewportOffset, setVisualViewportOffset] = useState(0);
-    const [showMobileFormatMenu, setShowMobileFormatMenu] = useState(false);
     const mobileMenuRef = useRef<HTMLDivElement>(null);
-
-    // Close mobile format menu when clicking outside
-    useEffect(() => {
-        if (!showMobileFormatMenu) return;
-        const handleClickOutside = (e: MouseEvent) => {
-            if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target as Node)) {
-                setShowMobileFormatMenu(false);
-            }
-        };
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [showMobileFormatMenu]);
-
-    // Close mobile format menu when focus changes
-    useEffect(() => {
-        setShowMobileFormatMenu(false);
-    }, [focusedId]);
 
     // Track visual viewport changes on mobile to slide the formatting toolbar above the keyboard
     useEffect(() => {
@@ -267,6 +262,24 @@ export default function Editor() {
                 </div>
 
                 <div className="flex items-center gap-2 md:gap-3">
+                    {/* Drafts & Versions Toggle Button */}
+                    <button
+                        onClick={() => setShowDraftsPanel(prev => !prev)}
+                        className={`flex items-center gap-1.5 px-2.5 py-1.5 md:px-3 md:py-2 rounded-lg border text-xs font-semibold transition-all ${showDraftsPanel
+                            ? 'bg-accent-500/15 border-accent-500/50 text-accent-600 dark:text-accent-400 shadow-sm'
+                            : 'bg-gray-50 dark:bg-gray-800/80 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700'
+                            }`}
+                        title="Manage Drafts & Versions"
+                    >
+                        <Layers className="h-4 w-4 text-accent-500 shrink-0" />
+                        <span className="max-w-[100px] sm:max-w-[140px] truncate hidden sm:inline">
+                            {activeDraft?.name || 'Drafts'}
+                        </span>
+                        <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-accent-500/20 text-accent-500 font-mono font-bold">
+                            {drafts.length}
+                        </span>
+                    </button>
+
                     <button
                         title="Save to Cloud"
                         onClick={saveScript}
@@ -342,114 +355,127 @@ export default function Editor() {
                     </div>
                 </div>
 
+                {/* Mobile Drafts Backdrop */}
+                {showDraftsPanel && (
+                    <div
+                        className="fixed inset-0 bg-black/60 z-40 md:hidden backdrop-blur-sm"
+                        onClick={() => setShowDraftsPanel(false)}
+                    />
+                )}
+
+                {/* Drafts & Versions Sidebar Panel */}
+                {showDraftsPanel && (
+                    <DraftsPanel
+                        isOpen={showDraftsPanel}
+                        onClose={() => setShowDraftsPanel(false)}
+                        drafts={drafts}
+                        activeDraftId={activeDraftId}
+                        onSwitchDraft={switchDraft}
+                        onOpenCreateModal={() => setShowCreateDraftModal(true)}
+                        onRenameDraft={renameDraft}
+                        onDuplicateDraft={duplicateDraft}
+                        onDeleteDraft={deleteDraft}
+                    />
+                )}
+
                 {/* Sticky Bottom Formatting Toolbar for Mobile */}
                 {focusedId !== null && (
                     <div
                         ref={mobileMenuRef}
-                        className="md:hidden fixed left-0 right-0 z-40 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 shadow-[0_-4px_12px_rgba(0,0,0,0.08)] px-4 py-3 flex items-center justify-between select-none shrink-0"
+                        className="md:hidden fixed left-0 right-0 z-40 bg-white/95 dark:bg-gray-900/95 backdrop-blur-xl border-t border-gray-200 dark:border-gray-800 shadow-[0_-8px_20px_rgba(0,0,0,0.15)] px-2.5 py-2 select-none shrink-0"
                         style={{
                             bottom: `${visualViewportOffset}px`,
-                            paddingBottom: visualViewportOffset > 0 ? '12px' : 'calc(12px + env(safe-area-inset-bottom))',
+                            paddingBottom: visualViewportOffset > 0 ? '8px' : 'calc(8px + env(safe-area-inset-bottom))',
                             transition: 'bottom 80ms ease-out'
                         }}
                     >
-                        <span className="text-xs font-semibold text-gray-500 dark:text-gray-400">
-                            Formatting
-                        </span>
-
-                        <div className="relative">
-                            {/* Trigger Button */}
+                        <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide py-0.5">
+                            {/* Fast Tab / Cycle Key */}
                             <button
                                 type="button"
                                 onMouseDown={(e) => {
                                     e.preventDefault();
-                                    setShowMobileFormatMenu(prev => !prev);
+                                    handleTab(focusedId);
                                 }}
-                                className={clsx(
-                                    'flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider border cursor-pointer transition-all duration-150 active:scale-95 shadow-sm',
-                                    'bg-gray-50 dark:bg-gray-800/60 text-gray-800 dark:text-gray-200 border-gray-200 dark:border-gray-700/80 hover:bg-gray-100 dark:hover:bg-gray-800'
-                                )}
+                                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200 border border-gray-300 dark:border-gray-700 active:scale-95 transition-transform shrink-0"
+                                title="Cycle Type (Tab)"
                             >
-                                <span className={clsx(
-                                    'w-2 h-2 rounded-full shrink-0',
-                                    (() => {
-                                        const type = blocks.find(b => b.id === focusedId)?.type;
-                                        if (type === 'scene') return 'bg-amber-600';
-                                        if (type === 'action') return 'bg-slate-600';
-                                        if (type === 'character') return 'bg-violet-600';
-                                        if (type === 'dialogue') return 'bg-emerald-600';
-                                        if (type === 'parenthetical') return 'bg-cyan-600';
-                                        if (type === 'transition') return 'bg-rose-600';
-                                        if (type === 'shot') return 'bg-orange-600';
-                                        return 'bg-gray-400';
-                                    })()
-                                )} />
-                                {(() => {
-                                    const type = blocks.find(b => b.id === focusedId)?.type;
-                                    return type ? TYPE_MAP[type] : '';
-                                })()}
-                                {showMobileFormatMenu ? (
-                                    <ChevronUp className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500" />
-                                ) : (
-                                    <ChevronDown className="h-3.5 w-3.5 text-gray-400 dark:text-gray-500" />
-                                )}
+                                <span className="text-[10px] text-gray-500 dark:text-gray-400">TAB</span> ⇥
                             </button>
 
-                            {/* Custom Floating Dropdown (opens upward) */}
-                            {showMobileFormatMenu && (
-                                <div className="absolute right-0 bottom-full mb-2 z-50 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl shadow-2xl py-2 min-w-[200px] overflow-hidden max-h-[300px] overflow-y-auto">
-                                    <div className="px-3 py-1.5 border-b border-gray-100 dark:border-gray-800 mb-1">
-                                        <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400">Choose Style</span>
-                                    </div>
-                                    {ALL_TYPES.map(type => {
-                                        const isCurrent = blocks.find(b => b.id === focusedId)?.type === type;
-                                        const label = TYPE_MAP[type];
-                                        
-                                        const dotColor: Record<BlockType, string> = {
-                                            scene:         'bg-amber-600',
-                                            action:        'bg-slate-600',
-                                            character:     'bg-violet-600',
-                                            dialogue:      'bg-emerald-600',
-                                            parenthetical: 'bg-cyan-600',
-                                            transition:    'bg-rose-600',
-                                            shot:          'bg-orange-600',
-                                        };
+                            {/* Direct Type Pills */}
+                            {ALL_TYPES.map(type => {
+                                const isCurrent = blocks.find(b => b.id === focusedId)?.type === type;
+                                const shortLabels: Record<BlockType, string> = {
+                                    scene: 'SCN',
+                                    action: 'ACT',
+                                    character: 'CHAR',
+                                    dialogue: 'DIAG',
+                                    parenthetical: 'PAR',
+                                    transition: 'TRN',
+                                    shot: 'SHOT'
+                                };
 
-                                        return (
-                                            <button
-                                                key={type}
-                                                type="button"
-                                                onMouseDown={(e) => {
-                                                    // Prevent losing focus from editor text area
-                                                    e.preventDefault();
-                                                    changeType(focusedId, type);
-                                                    setShowMobileFormatMenu(false);
-                                                }}
-                                                className={clsx(
-                                                    'w-full text-left px-3 py-2.5 text-xs font-semibold flex items-center gap-2.5 transition-colors cursor-pointer select-none',
-                                                    isCurrent
-                                                        ? 'bg-gray-50 dark:bg-gray-800 text-gray-900 dark:text-white'
-                                                        : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50/50 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-gray-200'
-                                                )}
-                                            >
-                                                <span className={clsx(
-                                                    'w-2 h-2 rounded-full shrink-0 ring-2 ring-offset-1 ring-offset-white dark:ring-offset-gray-900',
-                                                    dotColor[type],
-                                                    isCurrent ? 'ring-current' : 'ring-transparent'
-                                                )} />
-                                                <span className="uppercase tracking-wide">{label}</span>
-                                                {isCurrent && (
-                                                    <Check className="ml-auto h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400 font-bold" />
-                                                )}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            )}
+                                const dotColor: Record<BlockType, string> = {
+                                    scene: 'bg-amber-600',
+                                    action: 'bg-slate-600',
+                                    character: 'bg-violet-600',
+                                    dialogue: 'bg-emerald-600',
+                                    parenthetical: 'bg-cyan-600',
+                                    transition: 'bg-rose-600',
+                                    shot: 'bg-orange-600',
+                                };
+
+                                return (
+                                    <button
+                                        key={type}
+                                        type="button"
+                                        onMouseDown={(e) => {
+                                            e.preventDefault();
+                                            changeType(focusedId, type);
+                                        }}
+                                        className={clsx(
+                                            'flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-bold uppercase tracking-wider transition-all duration-150 cursor-pointer select-none shrink-0 border active:scale-95',
+                                            isCurrent
+                                                ? 'bg-indigo-600 text-white border-indigo-500 shadow-md shadow-indigo-500/20'
+                                                : 'bg-gray-50 dark:bg-gray-800/80 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700'
+                                        )}
+                                    >
+                                        <span className={clsx(
+                                            'w-2 h-2 rounded-full shrink-0',
+                                            isCurrent ? 'bg-white ring-2 ring-indigo-300' : dotColor[type]
+                                        )} />
+                                        <span>{shortLabels[type]}</span>
+                                    </button>
+                                );
+                            })}
+
+                            {/* New Line / Next Block Key */}
+                            <button
+                                type="button"
+                                onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    handleEnter(focusedId, blocks.find(b => b.id === focusedId)?.content || '', '', false);
+                                }}
+                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-mono font-bold bg-accent-500/20 text-accent-500 border border-accent-500/40 active:scale-95 transition-transform shrink-0 ml-auto"
+                                title="Insert Next Block"
+                            >
+                                <span>+ LINE</span> ↵
+                            </button>
                         </div>
                     </div>
                 )}
             </div>
+
+            {/* Create Draft Modal */}
+            <CreateDraftModal
+                isOpen={showCreateDraftModal}
+                onClose={() => setShowCreateDraftModal(false)}
+                availableScenes={availableScenes}
+                currentDraftName={activeDraft?.name || 'Draft 1'}
+                draftsCount={drafts.length}
+                onCreateDraft={createDraft}
+            />
         </div>
     );
 }

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
-import { Film, Check, PenTool, Cloud, Download, ArrowRight, Star } from 'lucide-react';
+import { Check, PenTool, Cloud, Download, ArrowRight, Star } from 'lucide-react';
 import { motion } from 'framer-motion';
+import logoImg from '../assets/logo.png';
 
 export default function Landing() {
     return (
@@ -9,12 +10,13 @@ export default function Landing() {
             <header className="fixed w-full z-50 bg-white/80 dark:bg-gray-950/80 backdrop-blur-md border-b border-gray-100 dark:border-gray-800">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex justify-between items-center h-16">
-                        <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 bg-indigo-600 rounded-lg flex items-center justify-center transform rotate-3 shadow-glow">
-                                <Film className="h-4 w-4 text-white" />
-                            </div>
-                            <span className="font-bold text-xl tracking-tight text-gray-900 dark:text-white">Cinemar</span>
-                        </div>
+                        <Link to="/" className="flex items-center">
+                            <img
+                                src={logoImg}
+                                alt="Cinemar Scripter"
+                                className="h-8 w-auto max-w-[170px] object-contain filter dark:brightness-100 brightness-75"
+                            />
+                        </Link>
                         <nav className="hidden md:flex gap-8">
                             <a href="#features" className="text-sm font-medium text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors">Features</a>
                             <a href="#" className="text-sm font-medium text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white transition-colors">Pricing</a>
@@ -157,9 +159,13 @@ export default function Landing() {
                 {/* Footer */}
                 <footer className="bg-white dark:bg-gray-950 border-t border-gray-100 dark:border-gray-800 py-12">
                     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center bg-gray-50 dark:bg-gray-950">
-                        <div className="flex items-center gap-2 mb-4 md:mb-0">
-                            <span className="font-bold text-lg text-gray-900 dark:text-white">Cinemar</span>
-                            <span className="text-sm text-gray-500 dark:text-gray-500">© 2024</span>
+                        <div className="flex items-center gap-3 mb-4 md:mb-0">
+                            <img
+                                src={logoImg}
+                                alt="Cinemar Scripter"
+                                className="h-6 w-auto max-w-[140px] object-contain filter dark:brightness-100 brightness-75"
+                            />
+                            <span className="text-sm text-gray-500 dark:text-gray-500">© 2026</span>
                         </div>
                         <div className="flex gap-8">
                             <a href="#" className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300">Twitter</a>

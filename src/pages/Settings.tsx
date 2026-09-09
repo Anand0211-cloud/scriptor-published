@@ -76,7 +76,7 @@ export default function Settings() {
 
     return (
         <DashboardLayout>
-            <div className="p-6 md:p-12 max-w-4xl mx-auto animate-fade-in space-y-8">
+            <div className="min-h-full p-6 md:p-12 pb-20 md:pb-28 max-w-4xl mx-auto animate-fade-in space-y-8">
                 <div>
                     <h1 className="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">Settings</h1>
                     <p className="text-gray-500 dark:text-gray-400 mt-2">Manage your account preferences and studio settings.</p>

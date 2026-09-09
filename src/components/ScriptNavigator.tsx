@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import clsx from 'clsx';
 import type { ScriptBlock } from '../hooks/useEditor';
-import { Film, Users, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Film, Users, ChevronLeft, ChevronRight, Search, X } from 'lucide-react';
 
 interface ScriptNavigatorProps {
     blocks: ScriptBlock[];
@@ -26,6 +26,7 @@ interface CharacterEntry {
 export default function ScriptNavigator({ blocks, onScrollToBlock, onClose }: ScriptNavigatorProps) {
     const [collapsed, setCollapsed] = useState(false);
     const [activeTab, setActiveTab] = useState<NavTab>('scenes');
+    const [searchQuery, setSearchQuery] = useState('');
 
     // Extract scenes
     const scenes = useMemo<SceneEntry[]>(() => {
@@ -60,6 +61,18 @@ export default function ScriptNavigator({ blocks, onScrollToBlock, onClose }: Sc
             .sort(([a], [b]) => a.localeCompare(b))
             .map(([name, data]) => ({ name, ...data }));
     }, [blocks]);
+
+    const filteredScenes = useMemo(() => {
+        if (!searchQuery.trim()) return scenes;
+        const q = searchQuery.toLowerCase().trim();
+        return scenes.filter(s => s.label.toLowerCase().includes(q) || `scene ${s.number}`.toLowerCase().includes(q));
+    }, [scenes, searchQuery]);
+
+    const filteredCharacters = useMemo(() => {
+        if (!searchQuery.trim()) return characters;
+        const q = searchQuery.toLowerCase().trim();
+        return characters.filter(c => c.name.toLowerCase().includes(q));
+    }, [characters, searchQuery]);
 
     if (collapsed) {
         return (
@@ -132,7 +145,7 @@ export default function ScriptNavigator({ blocks, onScrollToBlock, onClose }: Sc
                         'text-[9px] px-1.5 py-0.5 rounded-full font-bold',
                         activeTab === 'scenes' ? 'bg-indigo-500/20 text-indigo-300' : 'bg-gray-800 text-gray-500'
                     )}>
-                        {scenes.length}
+                        {filteredScenes.length}
                     </span>
                 </button>
                 <button
@@ -150,19 +163,43 @@ export default function ScriptNavigator({ blocks, onScrollToBlock, onClose }: Sc
                         'text-[9px] px-1.5 py-0.5 rounded-full font-bold',
                         activeTab === 'characters' ? 'bg-violet-500/20 text-violet-300' : 'bg-gray-800 text-gray-500'
                     )}>
-                        {characters.length}
+                        {filteredCharacters.length}
                     </span>
                 </button>
+            </div>
+
+            {/* Quick Search */}
+            <div className="p-2 border-b border-gray-800/80 bg-gray-950/40">
+                <div className="relative">
+                    <Search className="h-3.5 w-3.5 text-gray-500 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        placeholder={`Search ${activeTab}...`}
+                        className="w-full bg-gray-900/80 border border-gray-800 rounded-lg pl-8 pr-7 py-1 text-xs text-gray-200 placeholder-gray-500 outline-none focus:border-indigo-500/60"
+                    />
+                    {searchQuery && (
+                        <button
+                            onClick={() => setSearchQuery('')}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
+                        >
+                            <X className="h-3 w-3" />
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* Content */}
             <div className="flex-1 overflow-y-auto scrollbar-hide">
                 {activeTab === 'scenes' && (
                     <div className="py-2">
-                        {scenes.length === 0 ? (
-                            <p className="text-gray-600 text-xs px-3 py-4 text-center italic">No scenes yet</p>
+                        {filteredScenes.length === 0 ? (
+                            <p className="text-gray-600 text-xs px-3 py-4 text-center italic">
+                                {searchQuery ? 'No matching scenes' : 'No scenes yet'}
+                            </p>
                         ) : (
-                            scenes.map(scene => (
+                            filteredScenes.map(scene => (
                                 <button
                                     key={scene.blockId}
                                     onClick={() => onScrollToBlock(scene.blockId)}
@@ -182,10 +219,12 @@ export default function ScriptNavigator({ blocks, onScrollToBlock, onClose }: Sc
 
                 {activeTab === 'characters' && (
                     <div className="py-2">
-                        {characters.length === 0 ? (
-                            <p className="text-gray-600 text-xs px-3 py-4 text-center italic">No characters yet</p>
+                        {filteredCharacters.length === 0 ? (
+                            <p className="text-gray-600 text-xs px-3 py-4 text-center italic">
+                                {searchQuery ? 'No matching characters' : 'No characters yet'}
+                            </p>
                         ) : (
-                            characters.map(char => (
+                            filteredCharacters.map(char => (
                                 <button
                                     key={char.name}
                                     onClick={() => onScrollToBlock(char.firstBlockId)}

@@ -79,9 +79,9 @@ export default function Login() {
 
                     <div className="space-y-1">
                         <div className="flex items-center justify-end">
-                            <a href="#" className="text-xs font-medium text-accent-400 hover:text-accent-300 transition-colors">
+                            <Link to="/forgot-password" className="text-xs font-medium text-accent-400 hover:text-accent-300 transition-colors">
                                 Forgot password?
-                            </a>
+                            </Link>
                         </div>
                         <Input
                             id="password"

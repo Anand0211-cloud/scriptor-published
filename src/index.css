@@ -14,7 +14,7 @@
 
   /* Default to Dark Mode aesthetics, but keeping light mode override available */
   body {
-    @apply bg-paper dark:bg-bg-primary text-gray-900 dark:text-gray-100 font-sans antialiased overflow-x-hidden selection:bg-indigo-500/20;
+    @apply bg-paper dark:bg-bg-primary text-gray-900 dark:text-gray-100 font-sans antialiased overflow-x-hidden selection:bg-accent-500/30;
   }
 
   /* Screenplay Editor Specifics — Industry standard margins */
@@ -24,10 +24,10 @@
     width: 100%;
     max-width: 100%;
     min-height: calc(100vh - 7rem);
-    /* Mobile padding: proportional left/right for page feel, large bottom padding for keyboard/toolbar spacer */
-    padding: 24px 11.765% 160px 17.647%;
-    font-size: 12pt;
-    line-height: normal;
+    /* Mobile padding: comfortable padding to maximize writing area on phone screens */
+    padding: 20px 16px 160px 16px;
+    font-size: 11.5pt;
+    line-height: 1.35;
     outline: none;
     box-sizing: border-box;
     overflow-wrap: break-word;
@@ -41,6 +41,8 @@
       width: 8.5in;
       min-height: 11in;
       padding: 1in 1in 1in 1.5in;
+      font-size: 12pt;
+      line-height: normal;
     }
   }
 

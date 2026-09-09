@@ -312,13 +312,13 @@ export default function Block({
     } else if (block.type === 'shot') {
         responsiveClasses = 'w-full max-w-full';
     } else if (block.type === 'character') {
-        responsiveClasses = 'w-auto ml-[36.7%] md:ml-[2.2in] text-left';
+        responsiveClasses = 'w-auto ml-[22%] md:ml-[2.2in] text-left';
     } else if (block.type === 'dialogue') {
-        responsiveClasses = 'w-auto md:w-full ml-[16.7%] mr-[8.3%] md:ml-[1.0in] md:mr-[0.5in] max-w-full md:max-w-[4.5in] text-left';
+        responsiveClasses = 'w-auto md:w-full ml-[8%] mr-[4%] md:ml-[1.0in] md:mr-[0.5in] max-w-full md:max-w-[4.5in] text-left';
     } else if (block.type === 'parenthetical') {
-        responsiveClasses = 'w-auto md:w-full ml-[26.7%] mr-[16.7%] md:ml-[1.6in] md:mr-[1.0in] max-w-full md:max-w-[3.4in] text-left';
+        responsiveClasses = 'w-auto md:w-full ml-[14%] mr-[8%] md:ml-[1.6in] md:mr-[1.0in] max-w-full md:max-w-[3.4in] text-left';
     } else if (block.type === 'transition') {
-        responsiveClasses = 'w-fit text-right ml-auto mr-2 md:mr-0';
+        responsiveClasses = 'w-fit text-right ml-auto mr-1 md:mr-0';
     }
 
     const handleBlur = () => {

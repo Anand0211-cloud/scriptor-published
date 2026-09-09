@@ -4,6 +4,8 @@ import { useTheme } from '../components/ThemeProvider';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { LayoutDashboard, FileText, LogOut, Moon, Sun, Settings, Menu, X } from 'lucide-react';
 
+import logoImg from '../assets/logo.png';
+
 interface DashboardLayoutProps {
     children: ReactNode;
 }
@@ -40,15 +42,16 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             {/* Sidebar */}
             <aside className={`fixed inset-y-0 left-0 w-64 lg:static lg:w-72 bg-white dark:bg-[#111827] border-r border-gray-200 dark:border-gray-800 flex flex-col transition-transform duration-300 ease-in-out z-30 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
                 {/* Logo Area */}
-                <div className="h-20 flex items-center justify-between px-6 lg:px-8 border-b border-gray-200 dark:border-gray-800/50">
-                    <div className="flex items-center">
-                        <div className="h-10 w-10 bg-gradient-to-br from-accent-600 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-accent-500/20 transform hover:rotate-6 transition-all duration-300">
-                            <span className="text-white font-bold text-xl font-mono">C</span>
-                        </div>
-                        <span className="text-2xl font-bold text-gray-900 dark:text-white ml-4 tracking-tight">Cinemar</span>
-                    </div>
+                <div className="h-24 flex items-center justify-between px-4 lg:px-6 border-b border-gray-200 dark:border-gray-800/50">
+                    <Link to="/" className="flex items-center group py-2">
+                        <img
+                            src={logoImg}
+                            alt="Cinemar Scripter"
+                            className="h-14 sm:h-16 w-auto max-w-[220px] lg:max-w-[245px] object-contain transition-transform duration-300 group-hover:scale-105 filter dark:brightness-100 brightness-75 drop-shadow"
+                        />
+                    </Link>
                     {/* Close button for mobile */}
-                    <button className="lg:hidden text-gray-500 hover:text-gray-900 dark:hover:text-white" onClick={() => setSidebarOpen(false)}>
+                    <button className="lg:hidden text-gray-500 hover:text-gray-900 dark:hover:text-white p-1 rounded-md" onClick={() => setSidebarOpen(false)}>
                         <X className="h-6 w-6" />
                     </button>
                 </div>

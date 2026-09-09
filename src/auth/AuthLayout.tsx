@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Film } from 'lucide-react';
+import logoImg from '../assets/logo.png';
 
 interface AuthLayoutProps {
     children: ReactNode;
@@ -12,20 +12,24 @@ export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
         <div className="min-h-screen flex bg-paper dark:bg-bg-primary text-gray-900 dark:text-gray-100 font-sans selection:bg-accent-500/30">
             {/* Left Side - Form */}
             <div className="w-full lg:w-1/2 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 xl:px-20 relative z-10 transition-all duration-500 ease-in-out bg-paper dark:bg-bg-primary">
-                <div className="mx-auto w-full max-w-sm lg:max-w-md space-y-8">
-                    <div className="text-center lg:text-left">
-                        <div className="mx-auto lg:mx-0 h-10 w-10 bg-gradient-to-br from-accent-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-accent-500/20 mb-8 animate-fade-in">
-                            <Film className="h-6 w-6 text-white" />
+                <div className="mx-auto w-full max-w-sm lg:max-w-md space-y-5">
+                    <div className="text-left">
+                        <div className="flex justify-start mb-2 animate-fade-in">
+                            <img
+                                src={logoImg}
+                                alt="Cinemar Scripter"
+                                className="h-16 sm:h-20 w-auto max-w-[280px] sm:max-w-[320px] object-contain filter dark:brightness-100 brightness-75 drop-shadow-md"
+                            />
                         </div>
-                        <h2 className="mt-6 text-3xl font-bold tracking-tight text-gray-900 dark:text-white animate-slide-up">
+                        <h2 className="mt-0 text-3xl font-bold tracking-tight text-gray-900 dark:text-white animate-slide-up">
                             {title}
                         </h2>
-                        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                             {subtitle}
                         </p>
                     </div>
 
-                    <div className="mt-8 animate-slide-up" style={{ animationDelay: '0.1s' }}>
+                    <div className="mt-6 animate-slide-up" style={{ animationDelay: '0.1s' }}>
                         {children}
                     </div>
                 </div>
@@ -34,10 +38,6 @@ export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
             {/* Right Side - Visual / Cinematic Background */}
             <div className="hidden lg:block relative w-0 flex-1 overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-br from-bg-secondary to-bg-primary z-0">
-                    {/* Abstract Cinematic Elements - Removed purely blurred blobs to prevent artifacts */}
-                    {/* <div className="absolute top-0 right-0 -mr-20 -mt-20 w-96 h-96 rounded-full bg-accent-600/10 blur-3xl filter" /> */}
-                    {/* <div className="absolute bottom-0 left-0 -ml-20 -mb-20 w-80 h-80 rounded-full bg-indigo-600/10 blur-3xl filter" /> */}
-
                     {/* Dark overlay pattern */}
                     <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'radial-gradient(circle at 1px 1px, rgba(255,255,255,0.05) 1px, transparent 0)', backgroundSize: '24px 24px' }}></div>
                 </div>
@@ -56,7 +56,7 @@ export function AuthLayout({ children, title, subtitle }: AuthLayoutProps) {
                         </div>
                         <footer className="mt-4">
                             <div className="font-semibold text-accent-200">Sarah Jenkins</div>
-                            <div className="text-gray-500 text-sm">Award-winning Screenwriter</div>
+                            <div className="text-gray-400 text-sm">Award-winning Screenwriter</div>
                         </footer>
                     </blockquote>
                 </div>
