@@ -33,9 +33,16 @@ export default function SignUp() {
         }
 
         try {
-            const { error } = await supabase.auth.signUp({
+            const redirectUrl = typeof window !== 'undefined'
+                ? `${window.location.origin}/email-confirmed`
+                : 'https://scripter.cinemar.in/email-confirmed';
+
+            const { data, error } = await supabase.auth.signUp({
                 email,
                 password,
+                options: {
+                    emailRedirectTo: redirectUrl,
+                }
             });
 
             if (error) throw error;
@@ -45,8 +52,13 @@ export default function SignUp() {
                 console.error('Welcome email dispatch error:', err);
             });
 
-            // Redirect to dashboard
-            navigate('/');
+            // If user requires email confirmation (session is null or user unconfirmed), go to verify-email screen
+            if (data?.user && !data.session) {
+                navigate(`/verify-email?email=${encodeURIComponent(email)}`);
+            } else {
+                // Otherwise if confirmation is turned off in Supabase, enter studio directly
+                navigate('/');
+            }
         } catch (err: any) {
             setError(err.message);
         } finally {
