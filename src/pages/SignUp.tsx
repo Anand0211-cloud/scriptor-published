@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { sendWelcomeEmail } from '../lib/email';
 import { AuthLayout } from '../auth/AuthLayout';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -39,7 +40,12 @@ export default function SignUp() {
 
             if (error) throw error;
 
-            // For now, redirect to login or dashboard. 
+            // Send branded welcome email via Resend
+            sendWelcomeEmail(email).catch(err => {
+                console.error('Welcome email dispatch error:', err);
+            });
+
+            // Redirect to dashboard
             navigate('/');
         } catch (err: any) {
             setError(err.message);
