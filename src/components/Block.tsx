@@ -65,7 +65,7 @@ export default function Block({
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, [showTypeMenu]);
 
-    // Sync content from props to DOM ONLY for external/programmatic changes.
+    // Sync content from props to DOM ONLY for external/programmatic changes (such as speech-to-text dictation).
     // Skip when the change originated from local typing to preserve cursor position.
     useEffect(() => {
         if (isLocalEdit.current) {
@@ -74,6 +74,15 @@ export default function Block({
         }
         if (ref.current && ref.current.innerText !== block.content) {
             ref.current.innerText = block.content;
+            // If this element is currently focused, keep cursor at the end of the text
+            if (document.activeElement === ref.current) {
+                const range = document.createRange();
+                range.selectNodeContents(ref.current);
+                range.collapse(false);
+                const sel = window.getSelection();
+                sel?.removeAllRanges();
+                sel?.addRange(range);
+            }
         }
     }, [block.content]);
 

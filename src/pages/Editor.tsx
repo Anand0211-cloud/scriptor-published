@@ -5,11 +5,14 @@ import Block from '../components/Block';
 import ScriptNavigator from '../components/ScriptNavigator';
 import DraftsPanel from '../components/DraftsPanel';
 import CreateDraftModal from '../components/CreateDraftModal';
-import { Download, Save, ArrowLeft, Loader2, PanelLeftClose, PanelLeft, Layers } from 'lucide-react';
+import { Download, Save, ArrowLeft, Loader2, PanelLeftClose, PanelLeft, Layers, Mic, AlertCircle, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
 import { useRef, useCallback, useState, useMemo, useEffect } from 'react';
 import clsx from 'clsx';
+import { useSpeechToText } from '../hooks/useSpeechToText';
+import { formatSpeechForBlock } from '../lib/speechFormatter';
+import { TYPE_MAP } from '../hooks/useEditor';
 
 const ALL_TYPES: BlockType[] = ['scene', 'action', 'character', 'dialogue', 'parenthetical', 'transition', 'shot'];
 
@@ -47,6 +50,95 @@ export default function Editor() {
     const [showCreateDraftModal, setShowCreateDraftModal] = useState(false);
     const [visualViewportOffset, setVisualViewportOffset] = useState(0);
     const mobileMenuRef = useRef<HTMLDivElement>(null);
+
+    // Track blocks and focus in refs to ensure speech callbacks always write to the current target block
+    const blocksRef = useRef(blocks);
+    const focusedIdRef = useRef(focusedId);
+    const lastFocusedIdRef = useRef<string | null>(null);
+
+    useEffect(() => {
+        blocksRef.current = blocks;
+    }, [blocks]);
+
+    useEffect(() => {
+        focusedIdRef.current = focusedId;
+        if (focusedId) {
+            lastFocusedIdRef.current = focusedId;
+        }
+    }, [focusedId]);
+
+    // Handle incoming finalized speech text and apply format-specific rules
+    const handleSpeechFinalResult = useCallback((phrase: string) => {
+        const targetId = focusedIdRef.current || lastFocusedIdRef.current || blocksRef.current[blocksRef.current.length - 1]?.id;
+        if (!targetId) return;
+
+        const currentBlock = blocksRef.current.find(b => b.id === targetId);
+        if (!currentBlock) return;
+
+        const updatedContent = formatSpeechForBlock(phrase, currentBlock.content, currentBlock.type);
+        updateBlock(targetId, updatedContent);
+
+        // Maintain cursor focus
+        requestAnimationFrame(() => {
+            const el = document.querySelector(`[data-block-id="${targetId}"] [contenteditable="true"]`) as HTMLElement | null;
+            if (el && document.activeElement !== el) {
+                el.focus({ preventScroll: true });
+            }
+        });
+    }, [updateBlock]);
+
+    const {
+        isListening,
+        isSupported,
+        interimTranscript,
+        audioLevel,
+        error: speechError,
+        startListening,
+        stopListening,
+        clearError: clearSpeechError
+    } = useSpeechToText({
+        onFinalResult: handleSpeechFinalResult
+    });
+
+    const handleToggleDictation = useCallback(() => {
+        if (!isSupported) {
+            alert('Speech recognition is not supported in this browser. Please use Google Chrome, Microsoft Edge, or Safari for voice dictation.');
+            return;
+        }
+
+        if (isListening) {
+            stopListening();
+        } else {
+            const targetId = focusedId || lastFocusedIdRef.current || blocksRef.current[blocksRef.current.length - 1]?.id;
+            if (targetId) {
+                lastFocusedIdRef.current = targetId;
+                setFocusedId(targetId);
+                requestAnimationFrame(() => {
+                    const el = document.querySelector(`[data-block-id="${targetId}"] [contenteditable="true"]`) as HTMLElement | null;
+                    el?.focus({ preventScroll: true });
+                });
+            }
+            startListening();
+        }
+    }, [isSupported, isListening, focusedId, setFocusedId, startListening, stopListening]);
+
+    // Alt+M Keyboard Shortcut for quick hands-free dictation toggle
+    useEffect(() => {
+        const handleKeyDown = (e: globalThis.KeyboardEvent) => {
+            if (e.altKey && (e.key === 'm' || e.key === 'M' || e.code === 'KeyM')) {
+                e.preventDefault();
+                handleToggleDictation();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [handleToggleDictation]);
+
+    // Active block being dictated into for format indicator badge
+    const activeDictationBlock = useMemo(() => {
+        const targetId = focusedId || lastFocusedIdRef.current;
+        return blocks.find(b => b.id === targetId) || blocks[0];
+    }, [blocks, focusedId]);
 
     // Track visual viewport changes on mobile to slide the formatting toolbar above the keyboard
     useEffect(() => {
@@ -280,6 +372,34 @@ export default function Editor() {
                         </span>
                     </button>
 
+                    {/* Voice Dictation (Speech-to-Text) Toggle */}
+                    <button
+                        onClick={handleToggleDictation}
+                        className={clsx(
+                            'flex items-center gap-1.5 px-2.5 py-1.5 md:px-3 md:py-2 rounded-lg border text-xs font-semibold transition-all cursor-pointer select-none',
+                            isListening
+                                ? 'bg-red-500/15 border-red-500/60 text-red-600 dark:text-red-400 shadow-sm shadow-red-500/20 ring-2 ring-red-400/40'
+                                : 'bg-gray-50 dark:bg-gray-800/80 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700'
+                        )}
+                        title={isListening ? 'Stop Voice Dictation (Alt+M)' : 'Start Voice Dictation in English (Alt+M)'}
+                    >
+                        {isListening ? (
+                            <>
+                                <span className="relative flex h-2 w-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                                </span>
+                                <Mic className="h-4 w-4 text-red-500 animate-pulse shrink-0" />
+                                <span className="font-bold text-red-600 dark:text-red-400 hidden sm:inline">Listening</span>
+                            </>
+                        ) : (
+                            <>
+                                <Mic className="h-4 w-4 text-gray-500 dark:text-gray-400 shrink-0" />
+                                <span className="hidden sm:inline">Dictate</span>
+                            </>
+                        )}
+                    </button>
+
                     <button
                         title="Save to Cloud"
                         onClick={saveScript}
@@ -298,6 +418,23 @@ export default function Editor() {
                     </button>
                 </div>
             </header>
+
+            {/* Speech-to-Text Error Banner */}
+            {speechError && (
+                <div className="bg-amber-500/15 border-b border-amber-500/30 px-3 md:px-6 py-2 text-xs text-amber-800 dark:text-amber-300 flex items-center justify-between z-30 shrink-0">
+                    <div className="flex items-center gap-2">
+                        <AlertCircle className="h-4 w-4 shrink-0 text-amber-500" />
+                        <span>{speechError}</span>
+                    </div>
+                    <button
+                        onClick={clearSpeechError}
+                        className="p-1 hover:bg-amber-500/20 rounded transition-colors"
+                        title="Dismiss"
+                    >
+                        <X className="h-3.5 w-3.5" />
+                    </button>
+                </div>
+            )}
 
             {/* Main Content: Navigator Sidebar + Editor Workspace */}
             <div className="flex-1 flex overflow-hidden relative">
@@ -390,6 +527,25 @@ export default function Editor() {
                         }}
                     >
                         <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide py-0.5">
+                            {/* Mobile Mic / Voice Dictation Button */}
+                            <button
+                                type="button"
+                                onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    handleToggleDictation();
+                                }}
+                                className={clsx(
+                                    'flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-mono font-bold active:scale-95 transition-all shrink-0 border',
+                                    isListening
+                                        ? 'bg-red-500 text-white border-red-600 shadow-md shadow-red-500/20 animate-pulse'
+                                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-700'
+                                )}
+                                title={isListening ? 'Stop Dictating' : 'Start Voice Dictation'}
+                            >
+                                <Mic className="h-3.5 w-3.5 shrink-0" />
+                                <span>{isListening ? 'REC' : 'MIC'}</span>
+                            </button>
+
                             {/* Fast Tab / Cycle Key */}
                             <button
                                 type="button"
@@ -466,6 +622,126 @@ export default function Editor() {
                     </div>
                 )}
             </div>
+
+            {/* Live Dictation Floating Feedback Pill (Centered in Middle of Page) */}
+            {isListening && (
+                <div
+                    className="fixed z-50 pointer-events-none flex flex-col items-center"
+                    style={{
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        bottom: focusedId !== null && typeof window !== 'undefined' && window.innerWidth < 768
+                            ? `${visualViewportOffset + 58}px`
+                            : '24px',
+                        width: 'max-content',
+                        maxWidth: '92vw'
+                    }}
+                >
+                    <div className="bg-gray-900/95 dark:bg-gray-800/95 text-white backdrop-blur-xl border border-gray-700/80 shadow-[0_12px_40px_rgba(0,0,0,0.45)] rounded-2xl p-2.5 sm:px-4 sm:py-3 flex flex-col gap-2 pointer-events-auto transition-all animate-in fade-in slide-in-from-bottom-2 w-full min-w-[300px] sm:min-w-[420px]">
+                        {/* Top row: Status, Format, Spoken text, Close */}
+                        <div className="flex items-center gap-2.5 sm:gap-3">
+                            {/* Live recording indicator with live bouncing mini equalizer */}
+                            <div className="flex items-center gap-1.5 shrink-0">
+                                <span className="relative flex h-2.5 w-2.5">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500"></span>
+                                </span>
+                                <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-red-400">
+                                    Listening
+                                </span>
+
+                                {/* Mini 4-bar equalizer that directly bounces with audioLevel */}
+                                <div className="flex items-end gap-0.5 h-3.5 ml-1">
+                                    <div
+                                        className="w-1 bg-red-400 rounded-full transition-all duration-75"
+                                        style={{ height: `${Math.max(3, Math.min(14, 3 + audioLevel * 0.12))}px` }}
+                                    />
+                                    <div
+                                        className="w-1 bg-red-400 rounded-full transition-all duration-75"
+                                        style={{ height: `${Math.max(4, Math.min(14, 4 + audioLevel * 0.16))}px` }}
+                                    />
+                                    <div
+                                        className="w-1 bg-red-400 rounded-full transition-all duration-75"
+                                        style={{ height: `${Math.max(3, Math.min(14, 3 + audioLevel * 0.14))}px` }}
+                                    />
+                                    <div
+                                        className="w-1 bg-red-400 rounded-full transition-all duration-75"
+                                        style={{ height: `${Math.max(2, Math.min(14, 2 + audioLevel * 0.10))}px` }}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="h-3.5 w-px bg-gray-700 shrink-0"></div>
+
+                            {/* Active format pill */}
+                            {activeDictationBlock && (
+                                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded uppercase tracking-wider bg-gray-800 border border-gray-700 shrink-0 text-indigo-300">
+                                    {TYPE_MAP[activeDictationBlock.type]}
+                                </span>
+                            )}
+
+                            {/* Live interim preview or prompt */}
+                            <div className="text-xs truncate flex-1 min-w-0 font-mono">
+                                {interimTranscript ? (
+                                    <span className="text-gray-100 italic">
+                                        "{interimTranscript}..."
+                                    </span>
+                                ) : (
+                                    <span className="text-gray-400">
+                                        Speak in English (formats as {activeDictationBlock ? TYPE_MAP[activeDictationBlock.type].toLowerCase() : 'text'})
+                                    </span>
+                                )}
+                            </div>
+
+                            {/* Stop button */}
+                            <button
+                                type="button"
+                                onClick={stopListening}
+                                className="p-1 rounded-lg hover:bg-gray-700 text-gray-400 hover:text-white transition-colors shrink-0"
+                                title="Stop Dictation (Alt+M)"
+                            >
+                                <X className="h-3.5 w-3.5" />
+                            </button>
+                        </div>
+
+                        {/* Down Below: Live Audio Level Meter */}
+                        <div className="flex items-center gap-2 pt-1 border-t border-gray-800/80 text-[10px] font-mono">
+                            <span className="text-gray-400 shrink-0 flex items-center gap-1">
+                                <span className={clsx(
+                                    "w-1.5 h-1.5 rounded-full transition-colors",
+                                    audioLevel > 12 ? "bg-emerald-400 animate-pulse" : "bg-gray-500"
+                                )}></span>
+                                Audio Level:
+                            </span>
+
+                            {/* Dynamic volume progress track */}
+                            <div className="flex-1 h-2 bg-gray-800/90 rounded-full overflow-hidden border border-gray-700/50 p-0.5">
+                                <div
+                                    className={clsx(
+                                        "h-full rounded-full transition-all duration-75",
+                                        audioLevel > 60
+                                            ? "bg-gradient-to-r from-emerald-500 via-amber-400 to-red-500"
+                                            : audioLevel > 12
+                                                ? "bg-gradient-to-r from-teal-500 to-emerald-400"
+                                                : "bg-gray-600"
+                                    )}
+                                    style={{ width: `${Math.max(4, Math.min(100, audioLevel))}%` }}
+                                />
+                            </div>
+
+                            {/* Status and Percentage Badge */}
+                            <span className={clsx(
+                                "shrink-0 font-bold px-1.5 py-0.5 rounded text-[9px] transition-colors",
+                                audioLevel > 12
+                                    ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                                    : "bg-gray-800 text-gray-400 border border-gray-700"
+                            )}>
+                                {audioLevel > 12 ? `Voice Active ${audioLevel}%` : audioLevel > 0 ? `Mic ${audioLevel}%` : 'Mic Silent (0%)'}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Create Draft Modal */}
             <CreateDraftModal
